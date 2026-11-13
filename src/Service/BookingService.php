@@ -61,6 +61,11 @@ class BookingService
                     throw new InvalidBookingException('Trajet introuvable.');
                 }
 
+                // Force le rechargement depuis MySQL sous verrou exclusif (SELECT ... FOR UPDATE)
+                // afin d'éviter qu'une version obsolète présente dans l'Identity Map de Doctrine
+                // (ex. statut du trajet passé à CANCELLED par une transaction concurrente) ne fausse la validation.
+                $this->em->refresh($lockedTrip, LockMode::PESSIMISTIC_WRITE);
+
                 if (TripStatus::PUBLISHED !== $lockedTrip->getStatus()) {
                     throw new InvalidBookingException('Ce trajet n\'est pas ouvert à la réservation.');
                 }
