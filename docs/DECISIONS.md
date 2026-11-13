@@ -41,6 +41,26 @@ Ce document recense de manière chronologique les décisions d'architecture, les
 - **Décision** : Renommer la colonne SQL en `stop_order` et la propriété PHP en `stopOrder` via une migration dédiée (`Version20261113223701`), avec la contrainte d'unicité `uniq_trip_stop_trip_order (trip_id, stop_order)`.
 - **Justification** : Évite toute ambiguïté dans les requêtes SQL/DQL et exprime plus clairement la sémantique d'ordre séquentiel des étapes.
 
+## 2026-11-14 — `BookingService` est le seul point d'entrée pour créer une `Booking`
+- **Contexte** : La création d'une réservation implique des invariants critiques (vérification de capacité par segment, verrouillage concurrent, calcul exact du prix et validation des états).
+- **Décision** : Interdire toute instanciation/persistance directe de `Booking` dans les contrôleurs ; **`BookingService::book()` est l'unique point d'entrée applicatif** (hors fixtures de démonstration et tests bas niveau).
+- **Justification** : Centraliser la création dans `BookingService` garantit que chaque réservation exécute systématiquement :
+  1. Le verrouillage pessimiste `SELECT ... FOR UPDATE` (`LockMode::PESSIMISTIC_WRITE`) avec `EntityManager::refresh()` pour contourner tout cache de l'*Identity Map* Doctrine ;
+  2. Le recalcul atomique des places disponibles via `AvailabilityService::availableSeats()` sous verrou ;
+  3. Le calcul exact du prix figé avec `bcmath` (`calculatePortionPrice`) ;
+  4. Le mécanisme de réessai automatique en cas de deadlock MySQL (jusqu'à 3 tentatives).
+
+## 2026-11-14 — Barème de remboursement des annulations (`CancellationService`)
+- **Contexte** : En cas d'annulation, le montant remboursé (`Booking::refundAmount`) dépend de l'auteur de l'annulation et du délai restant avant le départ de l'étape `fromStop`.
+- **Décision** :
+  - **Annulation par le conducteur (`cancelTripByDriver`)** : Le trajet passe à `TripStatus::CANCELLED` et toutes les réservations `CONFIRMED` passent à `BookingStatus::CANCELLED_BY_DRIVER` avec un **remboursement intégral de 100 %** (`refundAmount = booking.price`), quel que soit le délai avant le départ.
+  - **Annulation par le passager (`cancelByPassenger`)** selon le préavis $\Delta t = \text{fromStop.departureTime} - \text{now}$ :
+    - **$\Delta t > 24\text{h}$** : remboursement de **100 %** (`1.00 × price`) ;
+    - **$2\text{h} \le \Delta t \le 24\text{h}$** : remboursement de **50 %** (`0.50 × price` via `bcmul`) ;
+    - **$0 < \Delta t < 2\text{h}$** : remboursement de **0 %** (`0.00`).
+    - **Exception (modification d'horaire $> \pm 30\text{ min}$ par le conducteur)** : remboursement de **100 %** même si $\Delta t \le 24\text{h}$.
+- **Justification** : Ce barème équilibré protège le passager en cas d'annulation anticipée ou imputable au conducteur, tout en indemnisant le conducteur lorsqu'une place est annulée à la dernière minute.
+
 ---
 
 ## Partie 2 — Les 5 « Questions à trancher » du sujet (propositions justifiées)
@@ -61,16 +81,16 @@ Ce document recense de manière chronologique les décisions d'architecture, les
   - **Pourquoi ce modèle ?** Il garantit la cohérence tarifaire (pas de paradoxe où `Casablanca → Marrakech` + `Marrakech → Agadir` coûterait moins cher ou plus cher que `Casablanca → Agadir`), évite au conducteur de saisir $\frac{n(n+1)}{2}$ prix manuellement pour toutes les paires d'arrêts, et reste stocké en valeur figée dans `booking.price` lors de la réservation.
 
 ### Question 3 — Que se passe-t-il si le conducteur modifie un horaire ou supprime une étape après réservations ?
-- **Réponse retenue : Politique de verrouillage progressif selon l'existence de réservations confirmées (`CONFIRMED`).**
-- **Justification et règles métier** :
-  1. **Tant qu'aucune réservation `CONFIRMED` n'existe sur le trajet** : le conducteur peut librement modifier les horaires, les prix des segments, ou ajouter/supprimer des étapes intermédiaires.
-  2. **Dès qu'au moins une réservation `CONFIRMED` existe** :
-     - **Suppression d'une étape** :
-       - Il est **strictement interdit** de supprimer une étape qui est référencée comme `fromStop` ou `toStop` par une réservation (protégé à la fois par la couche Service et par la clé étrangère SQL `RESTRICT`).
-       - Plus généralement, dès qu'une réservation est confirmée sur le trajet, la structure des étapes (ajout/suppression/réordonnancement) et les tarifs des segments sont **verrouillés** afin de ne pas altérer le contrat passé avec les passagers inscrits.
-     - **Modification d'un horaire** :
-       - Une modification mineure d'horaire (ajustement avant le départ) reste autorisée uniquement si la chronologie stricte des étapes est respectée (`stop[k].departureTime < stop[k+1].arrivalTime`) et que le trajet n'a pas encore débuté ; les passagers concernés en sont informés.
-     - **Si le conducteur ne peut plus assurer une étape réservée** : il doit annuler le trajet complet (passage du trajet à `TripStatus::CANCELLED` et des réservations confirmées à `BookingStatus::CANCELLED_BY_DRIVER` avec remboursement intégral `refundAmount = booking.price`).
+- **Réponse retenue : Tolérance horaire de $\pm 30\text{ minutes}$ (`TripService::updateStopTime`) et interdiction stricte de supprimer un arrêt utilisé ou traversé par une réservation `CONFIRMED` (`TripService::removeStop`).**
+- **Justification et règles métier implémentées** :
+  1. **Suppression d'une étape (`TripService::removeStop`)** :
+     - Il est **strictement interdit** de supprimer un arrêt d'ordre $k$ s'il est utilisé ou traversé par au moins une réservation `CONFIRMED`, c'est-à-dire si :
+       $$\text{booking.fromStop.stopOrder} \le k \le \text{booking.toStop.stopOrder}$$
+     - Un arrêt situé en dehors des portions réservées peut être retiré tant que le trajet conserve au moins 2 étapes ; les `stopOrder` restants sont alors réindexés.
+  2. **Modification d'un horaire (`TripService::updateStopTime`)** :
+     - Toute modification doit respecter la cohérence chronologique stricte entre étapes consécutives.
+     - **Tolérance de $\pm 30\text{ minutes}$ ($\le 1\,800\text{ s}$)** : considérée comme un ajustement mineur, les conditions d'annulation habituelles s'appliquent.
+     - **Au-delà de $\pm 30\text{ minutes}$ ($> 1\,800\text{ s}$)** : `updateStopTime()` retourne `true` et ouvre droit, pour tous les passagers `CONFIRMED`, à une **annulation sans frais avec remboursement à 100 %** (`cancelByPassenger(..., fullRefundDueToScheduleChange: true)`), même à moins de 24h ou 2h du départ.
 
 ### Question 4 — Un passager peut-il réserver plusieurs places en une fois ?
 - **Réponse retenue : OUI, via le champ `Booking::seats` ($1 \le \text{seats} \le \text{placesDisponibles}(i, j)$).**
