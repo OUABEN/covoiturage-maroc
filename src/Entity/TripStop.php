@@ -40,7 +40,13 @@ class TripStop
     private ?\DateTimeImmutable $arrivalTime = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $originalArrivalTime = null;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $departureTime = null;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $originalDepartureTime = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     #[Assert\NotBlank]
@@ -95,7 +101,22 @@ class TripStop
 
     public function setArrivalTime(?\DateTimeImmutable $arrivalTime): static
     {
+        if (null === $this->originalArrivalTime && null !== $arrivalTime) {
+            $this->originalArrivalTime = $arrivalTime;
+        }
         $this->arrivalTime = $arrivalTime;
+
+        return $this;
+    }
+
+    public function getOriginalArrivalTime(): ?\DateTimeImmutable
+    {
+        return $this->originalArrivalTime;
+    }
+
+    public function setOriginalArrivalTime(?\DateTimeImmutable $originalArrivalTime): static
+    {
+        $this->originalArrivalTime = $originalArrivalTime;
 
         return $this;
     }
@@ -107,7 +128,22 @@ class TripStop
 
     public function setDepartureTime(?\DateTimeImmutable $departureTime): static
     {
+        if (null === $this->originalDepartureTime && null !== $departureTime) {
+            $this->originalDepartureTime = $departureTime;
+        }
         $this->departureTime = $departureTime;
+
+        return $this;
+    }
+
+    public function getOriginalDepartureTime(): ?\DateTimeImmutable
+    {
+        return $this->originalDepartureTime;
+    }
+
+    public function setOriginalDepartureTime(?\DateTimeImmutable $originalDepartureTime): static
+    {
+        $this->originalDepartureTime = $originalDepartureTime;
 
         return $this;
     }

@@ -27,13 +27,14 @@ class CancellationService
 
     /**
      * Annulation d'une réservation par le passager :
-     * - > 24h avant le départ de fromStop : remboursement 100 %
-     * - entre 24h et 2h avant le départ   : remboursement 50 %
-     * - < 2h avant le départ              : remboursement 0 %
-     * (Si le conducteur a décalé l'horaire de plus de ±30 min, le remboursement 100 %
-     *  est géré via cancelByPassengerAfterScheduleChange ou le flag dédié).
+     * - Si l'horaire d'un arrêt de la portion réservée a été décalé de > ±30 min par rapport
+     *   à son horaire initial (originalDepartureTime / originalArrivalTime) : remboursement 100 %
+     * - Sinon, selon le préavis avant le départ de fromStop :
+     *   - > 24h avant le départ : remboursement 100 %
+     *   - entre 24h et 2h       : remboursement 50 %
+     *   - < 2h                  : remboursement 0 %
      */
-    public function cancelByPassenger(Booking $booking, User $passenger, bool $fullRefundDueToScheduleChange = false): Booking
+    public function cancelByPassenger(Booking $booking, User $passenger): Booking
     {
         $bookingPassenger = $booking->getPassenger();
         if (null === $bookingPassenger || ($bookingPassenger !== $passenger && $bookingPassenger->getId() !== $passenger->getId())) {
@@ -62,6 +63,8 @@ class CancellationService
             throw new InvalidCancellationException('Impossible d\'annuler une réservation après l\'heure de départ.');
         }
 
+        $fullRefundDueToScheduleChange = $this->hasScheduleChangedBeyondTolerance($booking);
+
         $price = (string) $booking->getPrice();
         if ($fullRefundDueToScheduleChange || $secondsUntilDeparture > self::SECONDS_24_HOURS) {
             $refundAmount = bcmul($price, '1.00', 2);
@@ -80,6 +83,44 @@ class CancellationService
         $this->em->flush();
 
         return $booking;
+    }
+
+    /**
+     * Vérifie à partir des colonnes persistantes (originalDepartureTime / originalArrivalTime)
+     * si un arrêt couvert par la réservation a subi un décalage horaire strictement supérieur à ±30 min.
+     */
+    private function hasScheduleChangedBeyondTolerance(Booking $booking): bool
+    {
+        $trip = $booking->getTrip();
+        $fromOrder = $booking->getFromStop()?->getStopOrder();
+        $toOrder = $booking->getToStop()?->getStopOrder();
+
+        if (null === $trip || null === $fromOrder || null === $toOrder) {
+            return false;
+        }
+
+        foreach ($trip->getStops() as $stop) {
+            $order = $stop->getStopOrder();
+            if (null === $order || $order < $fromOrder || $order > $toOrder) {
+                continue;
+            }
+
+            if (null !== $stop->getOriginalDepartureTime() && null !== $stop->getDepartureTime()) {
+                $delta = abs($stop->getDepartureTime()->getTimestamp() - $stop->getOriginalDepartureTime()->getTimestamp());
+                if ($delta > TripService::SCHEDULE_TOLERANCE_SECONDS) {
+                    return true;
+                }
+            }
+
+            if (null !== $stop->getOriginalArrivalTime() && null !== $stop->getArrivalTime()) {
+                $delta = abs($stop->getArrivalTime()->getTimestamp() - $stop->getOriginalArrivalTime()->getTimestamp());
+                if ($delta > TripService::SCHEDULE_TOLERANCE_SECONDS) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

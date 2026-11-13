@@ -145,13 +145,41 @@ class TripServiceTest extends KernelTestCase
 
         self::assertTrue($exceedsTolerance);
 
-        // Même à 1h du nouveau départ (< 2h), le passager obtient 100 % de remboursement suite au changement d'horaire > 30 min
+        // Même à 1h du nouveau départ (< 2h), le passager obtient 100 % de remboursement
+        // calculé automatiquement par CancellationService à partir de originalDepartureTime vs departureTime (> 30 min)
         $clock = new MockClock($newDep->modify('-1 hour'));
         $cancellationService = new CancellationService($this->em, $clock);
-        $cancellationService->cancelByPassenger($booking, $passenger, $exceedsTolerance);
+        $cancellationService->cancelByPassenger($booking, $passenger);
 
         self::assertSame(BookingStatus::CANCELLED_BY_PASSENGER, $booking->getStatus());
         self::assertSame('160.00', $booking->getRefundAmount());
+    }
+
+    public function testRemoveMiddleStopOfThreeStopsOnRealMysqlReindexesWithoutUniqueViolation(): void
+    {
+        [$trip, $stops, $driver] = $this->createFourStopScenario();
+
+        // Ramener d'abord de 4 à 3 arrêts : Agadir (0) -> Marrakech (1) -> Casablanca (2)
+        $this->tripService->removeStop($stops[3], $driver);
+        self::assertCount(3, $trip->getStops());
+
+        // Supprimer l'arrêt du milieu Marrakech (stop_order = 1) parmi les 3 arrêts (0, 1, 2) sur MySQL réel
+        $this->tripService->removeStop($stops[1], $driver);
+
+        $this->em->clear();
+        $reloadedTrip = $this->em->find(Trip::class, $trip->getId());
+        self::assertNotNull($reloadedTrip);
+        self::assertCount(2, $reloadedTrip->getStops());
+
+        $orders = [];
+        $cityNames = [];
+        foreach ($reloadedTrip->getStops() as $s) {
+            $orders[] = $s->getStopOrder();
+            $cityNames[] = $s->getCity()?->getName();
+        }
+
+        self::assertSame([0, 1], $orders);
+        self::assertSame(['Agadir', 'Casablanca'], $cityNames);
     }
 
     public function testRemoveStopTraversedByConfirmedBookingIsForbidden(): void

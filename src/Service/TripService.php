@@ -71,11 +71,13 @@ class TripService
         }
 
         $maxDeltaSeconds = 0;
-        if (null !== $stop->getArrivalTime() && null !== $newArrivalTime) {
-            $maxDeltaSeconds = max($maxDeltaSeconds, abs($newArrivalTime->getTimestamp() - $stop->getArrivalTime()->getTimestamp()));
+        $refArrival = $stop->getOriginalArrivalTime() ?? $stop->getArrivalTime();
+        if (null !== $refArrival && null !== $newArrivalTime) {
+            $maxDeltaSeconds = max($maxDeltaSeconds, abs($newArrivalTime->getTimestamp() - $refArrival->getTimestamp()));
         }
-        if (null !== $stop->getDepartureTime() && null !== $newDepartureTime) {
-            $maxDeltaSeconds = max($maxDeltaSeconds, abs($newDepartureTime->getTimestamp() - $stop->getDepartureTime()->getTimestamp()));
+        $refDeparture = $stop->getOriginalDepartureTime() ?? $stop->getDepartureTime();
+        if (null !== $refDeparture && null !== $newDepartureTime) {
+            $maxDeltaSeconds = max($maxDeltaSeconds, abs($newDepartureTime->getTimestamp() - $refDeparture->getTimestamp()));
         }
 
         $stop
@@ -92,6 +94,10 @@ class TripService
      * Supprime une étape d'un trajet publié uniquement si :
      * - Le trajet conserve au moins 2 étapes
      * - Aucune réservation CONFIRMED n'utilise ni ne traverse cet arrêt (from.stopOrder <= stop.stopOrder <= to.stopOrder).
+     *
+     * Effectue la suppression puis la réindexation en deux phases (deux flush dans une même transaction)
+     * car Doctrine exécute les UPDATE avant les DELETE lors d'un flush unique, ce qui violerait
+     * la contrainte d'unicité uniq_trip_stop_trip_order (trip_id, stop_order) lors de la suppression d'un arrêt intermédiaire.
      */
     public function removeStop(TripStop $stop, User $driver): void
     {
@@ -120,17 +126,29 @@ class TripService
             }
         }
 
-        $trip->removeStop($stop);
-        $this->em->remove($stop);
+        $this->em->beginTransaction();
+        try {
+            // Phase 1 : suppression SQL de l'arrêt pour libérer son stop_order dans l'index unique
+            $trip->removeStop($stop);
+            $this->em->remove($stop);
+            $this->em->flush();
 
-        // Réindexation séquentielle des stopOrder restants
-        $remainingStops = $trip->getStops()->toArray();
-        usort($remainingStops, static fn (TripStop $a, TripStop $b): int => (int) $a->getStopOrder() <=> (int) $b->getStopOrder());
-        foreach (array_values($remainingStops) as $newIndex => $remainingStop) {
-            $remainingStop->setStopOrder($newIndex);
+            // Phase 2 : réindexation séquentielle des stopOrder restants (0, 1, 2...)
+            $remainingStops = $trip->getStops()->toArray();
+            usort($remainingStops, static fn (TripStop $a, TripStop $b): int => (int) $a->getStopOrder() <=> (int) $b->getStopOrder());
+            foreach (array_values($remainingStops) as $newIndex => $remainingStop) {
+                $remainingStop->setStopOrder($newIndex);
+            }
+
+            $this->em->flush();
+            $this->em->commit();
+        } catch (\Throwable $e) {
+            if ($this->em->getConnection()->isTransactionActive()) {
+                $this->em->rollback();
+            }
+
+            throw $e;
         }
-
-        $this->em->flush();
     }
 
     private function assertDriverAndPublished(Trip $trip, User $driver): void
