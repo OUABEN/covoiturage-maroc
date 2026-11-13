@@ -31,3 +31,6 @@ when@test:
 
         App\Service\:
             resource: '../src/Service/'
+
+        App\Repository\:
+            resource: '../src/Repository/'
