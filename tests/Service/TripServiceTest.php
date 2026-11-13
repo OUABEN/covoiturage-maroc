@@ -226,4 +226,44 @@ class TripServiceTest extends KernelTestCase
 
         self::assertCount(3, $trip->getStops());
     }
+
+    public function testPublishValidMultiStopTripSucceedsAndInitializesOriginalStopTimes(): void
+    {
+        [$trip, $stops] = $this->createFourStopScenario();
+
+        $published = $this->tripService->publish($trip);
+
+        self::assertSame(TripStatus::PUBLISHED, $published->getStatus());
+        self::assertEquals($stops[0]->getDepartureTime(), $stops[0]->getOriginalDepartureTime());
+        self::assertEquals($stops[1]->getArrivalTime(), $stops[1]->getOriginalArrivalTime());
+    }
+
+    public function testPublishRejectsVehicleNotOwnedByDriver(): void
+    {
+        [$trip, , , $passenger] = $this->createFourStopScenario();
+        $trip->setDriver($passenger);
+
+        $this->expectException(InvalidTripOperationException::class);
+        $this->expectExceptionMessage('Le véhicule sélectionné n\'appartient pas au conducteur.');
+        $this->tripService->publish($trip);
+    }
+
+    public function testPublishRejectsSeatsTotalExceedingVehicleSeats(): void
+    {
+        [$trip] = $this->createFourStopScenario();
+        $trip->setSeatsTotal(6);
+
+        $this->expectException(InvalidTripOperationException::class);
+        $this->expectExceptionMessage('Le nombre de places proposées doit être compris entre 1 et la capacité du véhicule.');
+        $this->tripService->publish($trip);
+    }
+
+    public function testCompletePublishedTripMarksItCompleted(): void
+    {
+        [$trip, , $driver] = $this->createFourStopScenario();
+
+        $completed = $this->tripService->complete($trip, $driver);
+
+        self::assertSame(TripStatus::COMPLETED, $completed->getStatus());
+    }
 }
