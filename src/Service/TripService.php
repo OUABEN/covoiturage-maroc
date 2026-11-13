@@ -11,6 +11,7 @@ use App\Enum\BookingStatus;
 use App\Enum\TripStatus;
 use App\Exception\InvalidTripOperationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
 
 class TripService
 {
@@ -18,13 +19,122 @@ class TripService
 
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly ClockInterface $clock,
     ) {
     }
 
     /**
+     * Valide et publie un nouveau trajet multi-étapes :
+     * - Le véhicule doit appartenir au conducteur (vehicle.owner === driver)
+     * - 1 <= seatsTotal <= vehicle.seats
+     * - Au moins 2 étapes ordonnées (0, 1, ..., n) avec villes consécutives distinctes
+     * - Départ futur (> clock->now()) et chronologie strictement croissante entre étapes
+     * - Prix du premier arrêt à 0.00 et prix strictement positif (> 0.00) sur chaque segment suivant
+     * - Initialisation de originalArrivalTime et originalDepartureTime sur chaque étape.
+     */
+    public function publish(Trip $trip): Trip
+    {
+        $driver = $trip->getDriver();
+        $vehicle = $trip->getVehicle();
+
+        if (null === $driver || null === $vehicle) {
+            throw new InvalidTripOperationException('Le conducteur et le véhicule sont obligatoires pour publier un trajet.');
+        }
+
+        $owner = $vehicle->getOwner();
+        if (null === $owner || ($owner !== $driver && $owner->getId() !== $driver->getId())) {
+            throw new InvalidTripOperationException('Le véhicule sélectionné n\'appartient pas au conducteur.');
+        }
+
+        $seatsTotal = (int) $trip->getSeatsTotal();
+        if ($seatsTotal < 1 || $seatsTotal > (int) $vehicle->getSeats()) {
+            throw new InvalidTripOperationException('Le nombre de places proposées doit être compris entre 1 et la capacité du véhicule.');
+        }
+
+        $stops = $trip->getStops()->toArray();
+        if (\count($stops) < 2) {
+            throw new InvalidTripOperationException('Un trajet doit comporter au moins deux étapes (départ et arrivée).');
+        }
+
+        usort($stops, static fn (TripStop $a, TripStop $b): int => (int) $a->getStopOrder() <=> (int) $b->getStopOrder());
+
+        $previousTime = null;
+        $previousCity = null;
+
+        foreach (array_values($stops) as $expectedOrder => $stop) {
+            $stop->setStopOrder($expectedOrder);
+
+            $city = $stop->getCity();
+            if (null === $city) {
+                throw new InvalidTripOperationException('Chaque étape doit être associée à une ville.');
+            }
+
+            if (null !== $previousCity && ($previousCity === $city || (null !== $previousCity->getId() && $previousCity->getId() === $city->getId()))) {
+                throw new InvalidTripOperationException('Deux étapes consécutives ne peuvent pas avoir la même ville.');
+            }
+
+            $arrival = $stop->getArrivalTime();
+            $departure = $stop->getDepartureTime();
+
+            if (0 === $expectedOrder) {
+                if (null === $departure || $departure <= $this->clock->now()) {
+                    throw new InvalidTripOperationException('L\'heure de départ de la première étape doit être dans le futur.');
+                }
+                $stop->setPriceFromPrevious('0.00');
+                $previousTime = $departure;
+            } else {
+                if (bccomp($stop->getPriceFromPrevious(), '0.00', 2) <= 0) {
+                    throw new InvalidTripOperationException('Le prix de chaque segment après le départ doit être strictement positif.');
+                }
+
+                $effectiveStart = $arrival ?? $departure;
+                $effectiveEnd = $departure ?? $arrival;
+
+                if (null === $effectiveStart || null === $effectiveEnd) {
+                    throw new InvalidTripOperationException('Chaque étape doit posséder un horaire valide.');
+                }
+
+                if (null !== $arrival && null !== $departure && $arrival > $departure) {
+                    throw new InvalidTripOperationException('L\'heure d\'arrivée à une étape ne peut pas être postérieure à son heure de départ.');
+                }
+
+                if ($effectiveStart <= $previousTime) {
+                    throw new InvalidTripOperationException('La chronologie des étapes doit être strictement croissante.');
+                }
+
+                $previousTime = $effectiveEnd;
+            }
+
+            $stop->setOriginalArrivalTime($arrival);
+            $stop->setOriginalDepartureTime($departure);
+            $previousCity = $city;
+        }
+
+        $trip->setStatus(TripStatus::PUBLISHED);
+        $this->em->persist($trip);
+        $this->em->flush();
+
+        return $trip;
+    }
+
+    /**
+     * Marque un trajet publié comme terminé (COMPLETED), débloquant le dépôt des avis croisés.
+     */
+    public function complete(Trip $trip, User $driver): Trip
+    {
+        $this->assertDriverAndPublished($trip, $driver);
+
+        $trip->setStatus(TripStatus::COMPLETED);
+        $this->em->persist($trip);
+        $this->em->flush();
+
+        return $trip;
+    }
+
+    /**
      * Met à jour les horaires d'un arrêt avec vérification de cohérence chronologique.
-     * Retourne true si le décalage dépasse la tolérance de ±30 minutes (ce qui ouvre droit
-     * à une annulation avec remboursement 100 % pour les passagers CONFIRMED quel que soit le délai).
+     * Retourne true si le décalage dépasse la tolérance de ±30 minutes par rapport à l'horaire initial
+     * (originalArrivalTime / originalDepartureTime).
      */
     public function updateStopTime(
         TripStop $stop,
@@ -155,11 +265,11 @@ class TripService
     {
         $tripDriver = $trip->getDriver();
         if (null === $tripDriver || ($tripDriver !== $driver && $tripDriver->getId() !== $driver->getId())) {
-            throw new InvalidTripOperationException('Seul le conducteur du trajet peut modifier ses étapes.');
+            throw new InvalidTripOperationException('Seul le conducteur du trajet peut effectuer cette opération.');
         }
 
         if (TripStatus::PUBLISHED !== $trip->getStatus()) {
-            throw new InvalidTripOperationException('Seul un trajet publié peut être modifié.');
+            throw new InvalidTripOperationException('Seul un trajet publié permet cette opération.');
         }
     }
 }
