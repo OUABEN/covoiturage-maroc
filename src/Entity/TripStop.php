@@ -12,8 +12,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: TripStopRepository::class)]
 #[ORM\Table(name: 'trip_stop')]
-#[ORM\UniqueConstraint(name: 'uniq_trip_stop_trip_position', columns: ['trip_id', 'position'])]
-#[UniqueEntity(fields: ['trip', 'position'], message: 'Cette position existe déjà pour ce trajet.')]
+#[ORM\UniqueConstraint(name: 'uniq_trip_stop_trip_order', columns: ['trip_id', 'stop_order'])]
+#[UniqueEntity(fields: ['trip', 'stopOrder'], message: 'Cet ordre d\'arrêt existe déjà pour ce trajet.')]
 class TripStop
 {
     #[ORM\Id]
@@ -34,7 +34,7 @@ class TripStop
     #[ORM\Column]
     #[Assert\NotNull]
     #[Assert\PositiveOrZero]
-    private ?int $position = null;
+    private ?int $stopOrder = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $arrivalTime = null;
@@ -76,14 +76,14 @@ class TripStop
         return $this;
     }
 
-    public function getPosition(): ?int
+    public function getStopOrder(): ?int
     {
-        return $this->position;
+        return $this->stopOrder;
     }
 
-    public function setPosition(int $position): static
+    public function setStopOrder(int $stopOrder): static
     {
-        $this->position = $position;
+        $this->stopOrder = $stopOrder;
 
         return $this;
     }
@@ -124,3 +124,4 @@ class TripStop
         return $this;
     }
 }
+

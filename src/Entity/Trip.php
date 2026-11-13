@@ -49,7 +49,7 @@ class Trip
      * @var Collection<int, TripStop>
      */
     #[ORM\OneToMany(targetEntity: TripStop::class, mappedBy: 'trip', cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[ORM\OrderBy(['position' => 'ASC'])]
+    #[ORM\OrderBy(['stopOrder' => 'ASC'])]
     #[Assert\Valid]
     #[Assert\Count(min: 2, minMessage: 'Un trajet doit comporter au moins deux étapes (départ et arrivée).')]
     private Collection $stops;
@@ -181,3 +181,4 @@ class Trip
         return $this->bookings;
     }
 }
+

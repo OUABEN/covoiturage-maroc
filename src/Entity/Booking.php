@@ -101,8 +101,8 @@ class Booking
             return;
         }
 
-        if ($this->fromStop->getPosition() >= $this->toStop->getPosition()) {
-            $context->buildViolation('La position de l\'arrêt de départ doit être strictement inférieure à celle de l\'arrêt d\'arrivée.')
+        if ($this->fromStop->getStopOrder() >= $this->toStop->getStopOrder()) {
+            $context->buildViolation('L\'ordre de l\'arrêt de départ doit être strictement inférieur à celui de l\'arrêt d\'arrivée.')
                 ->atPath('toStop')
                 ->addViolation();
         }
@@ -241,3 +241,4 @@ class Booking
         return $this->reviews;
     }
 }
+
