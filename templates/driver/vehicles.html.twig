@@ -1,0 +1,66 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mes véhicules — AtlasCovoit Maroc{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold mb-0">Mes véhicules</h1>
+    <a href="{{ path('app_my_trips') }}" class="btn btn-outline-secondary btn-sm">Retour à mes trajets</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h5 fw-bold mb-3">Ajouter un véhicule</h2>
+                <form method="post" action="{{ path('app_my_vehicles') }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('manage_vehicle') }}">
+                    <div class="mb-3">
+                        <label for="brand" class="form-label fw-semibold">Marque</label>
+                        <input type="text" name="brand" id="brand" class="form-control" placeholder="Ex. Dacia" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="model" class="form-label fw-semibold">Modèle</label>
+                        <input type="text" name="model" id="model" class="form-control" placeholder="Ex. Duster" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="color" class="form-label fw-semibold">Couleur</label>
+                        <input type="text" name="color" id="color" class="form-control" placeholder="Ex. Gris" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="seats" class="form-label fw-semibold">Nombre de places passagers</label>
+                        <input type="number" name="seats" id="seats" class="form-control" min="1" max="9" value="4" required>
+                    </div>
+                    <button type="submit" class="btn btn-brand w-100 fw-semibold">Ajouter le véhicule</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h5 fw-bold mb-3">Véhicules enregistrés ({{ vehicles|length }})</h2>
+                {% if vehicles is empty %}
+                    <p class="text-muted mb-0">Aucun véhicule enregistré.</p>
+                {% else %}
+                    <div class="list-group list-group-flush">
+                        {% for v in vehicles %}
+                            <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ v.brand }} {{ v.model }}</strong>
+                                    <span class="text-muted small ms-2">({{ v.color }} &bull; {{ v.seats }} places)</span>
+                                </div>
+                                <form method="post" action="{{ path('app_vehicle_delete', {id: v.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('delete_vehicle_' ~ v.id) }}">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Supprimer</button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
