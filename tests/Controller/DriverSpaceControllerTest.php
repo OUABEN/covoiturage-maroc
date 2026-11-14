@@ -161,9 +161,11 @@ class DriverSpaceControllerTest extends WebTestCase
         $secondStop = $trip->getStops()->get(1);
 
         // Attach a confirmed booking on segment 0 -> 1 (120.00 MAD)
+        $passengerRef = $this->em->find(User::class, $passenger->getId());
+        self::assertNotNull($passengerRef);
         $booking = (new Booking())
             ->setTrip($trip)
-            ->setPassenger($passenger)
+            ->setPassenger($passengerRef)
             ->setFromStop($firstStop)
             ->setToStop($secondStop)
             ->setSeats(1)
