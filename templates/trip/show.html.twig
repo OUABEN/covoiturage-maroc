@@ -1,0 +1,186 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Trajet #{{ trip.id }} — AtlasCovoit Maroc{% endblock %}
+
+{% block body %}
+<div class="mb-3">
+    <a href="{{ path('app_home') }}" class="text-decoration-none small">
+        <i class="bi bi-arrow-left me-1"></i>Retour à la recherche
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <span class="badge {{ trip.status.value == 'PUBLISHED' ? 'bg-success' : (trip.status.value == 'COMPLETED' ? 'bg-secondary' : 'bg-danger') }} mb-2">
+                            {{ trip.status.value == 'PUBLISHED' ? 'Publié' : (trip.status.value == 'COMPLETED' ? 'Terminé' : 'Annulé') }}
+                        </span>
+                        <h1 class="h3 fw-bold mb-1">
+                            {{ stops|first.city.name }}
+                            <i class="bi bi-arrow-right mx-2 text-muted"></i>
+                            {{ stops|last.city.name }}
+                        </h1>
+                        <p class="text-muted small mb-0">
+                            Départ initial le {{ stops|first.departureTime|date('d/m/Y à H:i') }}
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-light text-dark border">
+                            <i class="bi bi-people me-1"></i>Capacité max : {{ trip.seatsTotal }} places
+                        </span>
+                    </div>
+                </div>
+
+                <hr>
+
+                <h2 class="h5 fw-bold mb-3">Itinéraire détaillé et segments</h2>
+                <div class="list-group list-group-flush">
+                    {% for i, stop in stops %}
+                        <div class="list-group-item px-0 py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="badge rounded-pill bg-dark me-2">Étape {{ stop.stopOrder + 1 }}</span>
+                                    <strong class="fs-5">{{ stop.city.name }}</strong>
+                                    <div class="text-muted small mt-1">
+                                        {% if stop.arrivalTime %}
+                                            <span class="me-3"><i class="bi bi-clock me-1"></i>Arrivée : {{ stop.arrivalTime|date('d/m/Y H:i') }}</span>
+                                        {% endif %}
+                                        {% if stop.departureTime %}
+                                            <span><i class="bi bi-play-circle me-1"></i>Départ : {{ stop.departureTime|date('d/m/Y H:i') }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if i > 0 %}
+                                    <div class="text-end">
+                                        <span class="badge bg-teal text-bg-info">
+                                            Segment depuis {{ stops[i - 1].city.name }} : {{ stop.priceFromPrevious }} MAD
+                                        </span>
+                                        <div class="small text-muted mt-1">
+                                            Places libres sur ce segment : <strong>{{ segmentAvailabilities[i - 1] }} / {{ trip.seatsTotal }}</strong>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span class="badge bg-secondary">Point de départ</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h2 class="h5 fw-bold mb-3">Conducteur &amp; Véhicule</h2>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <div class="fw-bold fs-5">
+                            <a href="{{ path('app_profile_show', {id: trip.driver.id}) }}" class="text-decoration-none">
+                                <i class="bi bi-person-badge me-1"></i>{{ trip.driver.fullName }}
+                            </a>
+                        </div>
+                        <div class="small text-muted mt-1">
+                            {% if driverRating.average is not null %}
+                                <span class="text-warning"><i class="bi bi-star-fill"></i></span>
+                                <strong>{{ driverRating.average }}/5</strong> ({{ driverRating.count }} avis)
+                            {% else %}
+                                Aucun avis pour le moment
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-md-end">
+                        <div class="fw-semibold">
+                            <i class="bi bi-car-front me-1"></i>{{ trip.vehicle.brand }} {{ trip.vehicle.model }}
+                        </div>
+                        <div class="small text-muted">
+                            Couleur : {{ trip.vehicle.color }} ({{ trip.vehicle.seats }} places max)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 sticky-top" style="top: 1.5rem;">
+            <div class="card-body p-4">
+                <h2 class="h4 fw-bold mb-3">Réserver une portion</h2>
+
+                <div class="p-3 rounded bg-light border mb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted">Portion sélectionnée</div>
+                        <div class="fw-bold">{{ selectedFrom.city.name }} &rarr; {{ selectedTo.city.name }}</div>
+                        <div class="small text-success fw-semibold">
+                            {{ portionAvailableSeats }} place(s) disponible(s)
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fs-4 fw-bold text-dark">{{ portionUnitPrice }} MAD</div>
+                        <div class="small text-muted">par place</div>
+                    </div>
+                </div>
+
+                {% if trip.status.value != 'PUBLISHED' %}
+                    <div class="alert alert-secondary mb-0">
+                        Ce trajet n'est plus ouvert à la réservation.
+                    </div>
+                {% elseif app.user %}
+                    <form method="post" action="{{ path('app_trip_book', {id: trip.id}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('book_trip_' ~ trip.id) }}">
+
+                        <div class="mb-3">
+                            <label for="from_stop" class="form-label fw-semibold">Ville de montée</label>
+                            <select name="from_stop" id="from_stop" class="form-select" required>
+                                {% for stop in stops|slice(0, stops|length - 1) %}
+                                    <option value="{{ stop.id }}" {{ selectedFrom and selectedFrom.id == stop.id ? 'selected' : '' }}>
+                                        {{ stop.stopOrder + 1 }}. {{ stop.city.name }} ({{ stop.departureTime|date('H:i') }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="to_stop" class="form-label fw-semibold">Ville de descente</label>
+                            <select name="to_stop" id="to_stop" class="form-select" required>
+                                {% for stop in stops|slice(1) %}
+                                    <option value="{{ stop.id }}" {{ selectedTo and selectedTo.id == stop.id ? 'selected' : '' }}>
+                                        {{ stop.stopOrder + 1 }}. {{ stop.city.name }} ({{ (stop.arrivalTime ?? stop.departureTime)|date('H:i') }} — +{{ stop.priceFromPrevious }} MAD)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="seats" class="form-label fw-semibold">Nombre de places</label>
+                            <input
+                                type="number"
+                                name="seats"
+                                id="seats"
+                                class="form-control"
+                                min="1"
+                                max="{{ trip.seatsTotal }}"
+                                value="1"
+                                required
+                            >
+                        </div>
+
+                        <button type="submit" class="btn btn-brand w-100 py-2 fw-semibold">
+                            <i class="bi bi-check2-circle me-1"></i>Confirmer la réservation
+                        </button>
+                    </form>
+                {% else %}
+                    <div class="alert alert-info mb-3 small">
+                        Connectez-vous pour réserver votre place sur ce trajet.
+                    </div>
+                    <a href="{{ path('app_login') }}" class="btn btn-brand w-100 fw-semibold">
+                        Se connecter pour réserver
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
