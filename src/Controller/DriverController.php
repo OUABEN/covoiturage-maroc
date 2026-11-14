@@ -15,6 +15,8 @@ use App\Exception\InvalidTripOperationException;
 use App\Repository\CityRepository;
 use App\Repository\TripRepository;
 use App\Repository\VehicleRepository;
+use App\Security\Voter\TripVoter;
+use App\Security\Voter\VehicleVoter;
 use App\Service\CancellationService;
 use App\Service\TripService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -114,16 +116,12 @@ class DriverController extends AbstractController
         TripRepository $tripRepository,
         EntityManagerInterface $em,
     ): Response {
+        $this->denyAccessUnlessGranted(VehicleVoter::MANAGE, $vehicle);
+
         if (!$this->isCsrfTokenValid('delete_vehicle_'.$vehicle->getId(), (string) $request->request->get('_token'))) {
             $this->addFlash('danger', 'Jeton CSRF invalide.');
 
             return $this->redirectToRoute('app_my_vehicles');
-        }
-
-        /** @var User $user */
-        $user = $this->getUser();
-        if ($vehicle->getOwner()?->getId() !== $user->getId()) {
-            throw $this->createAccessDeniedException();
         }
 
         if ($tripRepository->count(['vehicle' => $vehicle]) > 0) {
@@ -222,6 +220,8 @@ class DriverController extends AbstractController
         Request $request,
         TripService $tripService,
     ): Response {
+        $this->denyAccessUnlessGranted(TripVoter::MANAGE, $stop->getTrip());
+
         if (!$this->isCsrfTokenValid('update_stop_'.$stop->getId(), (string) $request->request->get('_token'))) {
             $this->addFlash('danger', 'Jeton CSRF invalide.');
 
@@ -257,6 +257,8 @@ class DriverController extends AbstractController
         Request $request,
         TripService $tripService,
     ): Response {
+        $this->denyAccessUnlessGranted(TripVoter::MANAGE, $trip);
+
         if (!$this->isCsrfTokenValid('complete_trip_'.$trip->getId(), (string) $request->request->get('_token'))) {
             $this->addFlash('danger', 'Jeton CSRF invalide.');
 
@@ -282,6 +284,8 @@ class DriverController extends AbstractController
         Request $request,
         CancellationService $cancellationService,
     ): Response {
+        $this->denyAccessUnlessGranted(TripVoter::MANAGE, $trip);
+
         if (!$this->isCsrfTokenValid('cancel_trip_'.$trip->getId(), (string) $request->request->get('_token'))) {
             $this->addFlash('danger', 'Jeton CSRF invalide.');
 
