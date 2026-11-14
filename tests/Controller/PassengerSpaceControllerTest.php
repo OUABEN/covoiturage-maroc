@@ -184,7 +184,21 @@ class PassengerSpaceControllerTest extends WebTestCase
         self::assertSame('100.00', $this->em->find(Booking::class, $booking50->getId())?->getRefundAmount());
         self::assertSame('0.00', $this->em->find(Booking::class, $booking0->getId())?->getRefundAmount());
 
-        // 3. Avis refusé avant la fin du trajet (trajet PUBLISHED)
+        // 3a. Avis refusé avant la fin du trajet (trajet PUBLISHED)
+        /** @var \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrfManager */
+        $csrfManager = static::getContainer()->get('security.csrf.token_manager');
+        $activeReviewToken = $csrfManager->getToken('review_booking_'.$bookingActive->getId())->getValue();
+        $this->client->request('POST', sprintf('/mes-reservations/%d/avis', $bookingActive->getId()), [
+            '_token' => $activeReviewToken,
+            'rating' => '5',
+            'comment' => 'Tentative avant fin du trajet',
+        ]);
+        self::assertResponseRedirects('/mes-reservations');
+        $this->client->followRedirect();
+        self::assertSelectorExists('.alert-danger');
+        self::assertSame(0, $this->em->getRepository(Review::class)->count(['booking' => $bookingActive->getId()]));
+
+        // 3b. Avis accepté après la fin du trajet (trajet COMPLETED)
         $crawler = $this->client->request('GET', '/mes-reservations');
         $reviewFormCompleted = $crawler->selectButton('Envoyer l\'avis')->form([
             'rating' => '5',
