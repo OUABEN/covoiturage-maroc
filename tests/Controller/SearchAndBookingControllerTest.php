@@ -135,11 +135,34 @@ class SearchAndBookingControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Youssef Benali');
         self::assertSelectorTextContains('body', '220.00 MAD');
         self::assertSelectorTextContains('body', '3 place(s)');
+
+        // Recherche sans résultat (date sans trajet)
+        $this->client->request('GET', '/recherche', [
+            'from' => $agadir->getId(),
+            'to' => $casablanca->getId(),
+            'date' => $day->modify('+10 days')->format('Y-m-d'),
+        ]);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', 'Aucun trajet disponible pour cette recherche');
     }
 
     public function testBookingSucceededAndBookingRefusedWhenNoSeatsRemain(): void
     {
-        [$trip, $stops, , , $passenger] = $this->createSearchAndBookingFixtures(1);
+        [$trip, $stops, , $driver, $passenger] = $this->createSearchAndBookingFixtures(1);
+
+        // 0. Le conducteur ne peut pas réserver son propre trajet
+        $this->client->loginUser($driver);
+        $crawler = $this->client->request('GET', sprintf('/trajets/%d', $trip->getId()));
+        self::assertResponseIsSuccessful();
+        $driverForm = $crawler->selectButton('Confirmer la réservation')->form([
+            'from_stop' => (string) $stops[0]->getId(),
+            'to_stop' => (string) $stops[1]->getId(),
+            'seats' => '1',
+        ]);
+        $this->client->submit($driverForm);
+        self::assertResponseRedirects();
+        $this->client->followRedirect();
+        self::assertSelectorExists('.alert-danger');
 
         $this->client->loginUser($passenger);
 

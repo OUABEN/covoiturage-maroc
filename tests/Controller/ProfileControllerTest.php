@@ -112,5 +112,12 @@ class ProfileControllerTest extends WebTestCase
         self::assertStringContainsString('Basé sur 1 avis vérifié(s)', $crawler->text());
         self::assertStringContainsString('Excellent trajet sur l\'autoroute Agadir-Marrakech !', $crawler->text());
         self::assertStringContainsString('Peugeot 3008', $crawler->text());
+
+        // Aucune donnée sensible (email ou téléphone) ne doit être exposée sur le profil public
+        $html = (string) $this->client->getResponse()->getContent();
+        self::assertStringNotContainsString((string) $driver->getEmail(), $html);
+        self::assertStringNotContainsString((string) $driver->getPhone(), $html);
+        self::assertStringNotContainsString((string) $passenger->getEmail(), $html);
+        self::assertStringNotContainsString((string) $passenger->getPhone(), $html);
     }
 }
