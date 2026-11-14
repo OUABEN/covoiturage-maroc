@@ -3,24 +3,24 @@
 {% block title %}Mes réservations — AtlasCovoit Maroc{% endblock %}
 
 {% block body %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
     <div>
         <h1 class="h3 fw-bold mb-1">Mes réservations</h1>
         <p class="text-muted small mb-0">
             Consultez vos trajets à venir, vos remboursements prévus en cas d'annulation et laissez vos avis après le voyage.
         </p>
     </div>
-    <a href="{{ path('app_home') }}" class="btn btn-brand btn-sm fw-semibold">
+    <a href="{{ path('app_home') }}" class="btn btn-lime btn-sm">
         <i class="bi bi-search me-1"></i>Rechercher un trajet
     </a>
 </div>
 
 <h2 class="h5 fw-bold mb-3">
-    <i class="bi bi-calendar-check text-success me-1"></i>Réservations à venir ({{ upcomingBookings|length }})
+    <i class="bi bi-calendar-check me-1" style="color: var(--accent);"></i>Réservations à venir ({{ upcomingBookings|length }})
 </h2>
 
 {% if upcomingBookings is empty %}
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="card mb-4">
         <div class="card-body p-4 text-center text-muted">
             Aucune réservation à venir pour le moment.
         </div>
@@ -30,11 +30,11 @@
         {% for booking in upcomingBookings %}
             {% set preview = refundPreviews[booking.id] ?? {'percentage': 0, 'amount': '0.00'} %}
             <div class="col-12">
-                <div class="card border-0 shadow-sm">
+                <div class="card">
                     <div class="card-body p-4">
                         <div class="row align-items-center g-3">
                             <div class="col-lg-5">
-                                <span class="badge bg-success mb-2">Confirmée</span>
+                                <span class="badge badge-lime mb-2">Confirmée</span>
                                 <div class="fw-bold fs-5">
                                     {{ booking.fromStop.city.name }}
                                     <i class="bi bi-arrow-right mx-1 text-muted"></i>
@@ -55,25 +55,25 @@
 
                             <div class="col-lg-3">
                                 <div class="fw-semibold">{{ booking.seats }} place(s) réservée(s)</div>
-                                <div class="fs-5 fw-bold text-dark">{{ booking.price }} MAD</div>
+                                <div class="fs-5 fw-bold" style="color: var(--accent);">{{ booking.price }} MAD</div>
                                 <div class="small text-muted mt-1">
                                     Remboursement prévu si annulation maintenant :
-                                    <span class="badge bg-info-subtle text-dark border">
+                                    <span class="badge badge-surface">
                                         {{ preview.percentage }} % ({{ preview.amount }} MAD)
                                     </span>
                                 </div>
                             </div>
 
-                            <div class="col-lg-4 text-lg-end">
-                                <form method="post" action="{{ path('app_booking_cancel', {id: booking.id}) }}" class="d-inline" onsubmit="return confirm('Confirmer l\'annulation ? Remboursement prévu : {{ preview.percentage }} % ({{ preview.amount }} MAD)');">
+                            <div class="col-lg-4 text-lg-end d-flex flex-wrap justify-content-lg-end gap-2">
+                                <a href="{{ path('app_booking_cancel_confirm', {id: booking.id}) }}" class="btn btn-outline-light btn-sm">
+                                    Aperçu annulation ({{ preview.percentage }} %)
+                                </a>
+                                <form method="post" action="{{ path('app_booking_cancel', {id: booking.id}) }}" class="d-inline">
                                     <input type="hidden" name="_token" value="{{ csrf_token('cancel_booking_' ~ booking.id) }}">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm fw-semibold">
+                                    <button type="submit" class="btn btn-danger btn-sm">
                                         <i class="bi bi-x-circle me-1"></i>Annuler (remboursement {{ preview.percentage }} % : {{ preview.amount }} MAD)
                                     </button>
                                 </form>
-                                <a href="{{ path('app_trip_show', {id: booking.trip.id}) }}" class="btn btn-outline-secondary btn-sm ms-1">
-                                    Détail
-                                </a>
                             </div>
                         </div>
                     </div>
@@ -84,32 +84,26 @@
 {% endif %}
 
 <h2 class="h5 fw-bold mb-3">
-    <i class="bi bi-clock-history text-secondary me-1"></i>Historique &amp; Réservations passées / annulées ({{ pastBookings|length }})
+    <i class="bi bi-check2-circle me-1" style="color: var(--accent);"></i>Réservations passées ({{ pastBookings|length }})
 </h2>
 
 {% if pastBookings is empty %}
-    <div class="card border-0 shadow-sm">
+    <div class="card mb-4">
         <div class="card-body p-4 text-center text-muted">
-            Aucun historique de réservation.
+            Aucune réservation passée.
         </div>
     </div>
 {% else %}
-    <div class="row g-3">
+    <div class="row g-3 mb-5">
         {% for booking in pastBookings %}
             {% set isCompletedAndConfirmed = booking.status.value == 'CONFIRMED' and booking.trip.status.value == 'COMPLETED' %}
             {% set alreadyReviewed = reviewedBookingIds[booking.id] ?? false %}
             <div class="col-12">
-                <div class="card border-0 shadow-sm">
+                <div class="card">
                     <div class="card-body p-4">
                         <div class="row align-items-center g-3">
                             <div class="col-md-6">
-                                {% if booking.status.value == 'CONFIRMED' %}
-                                    <span class="badge bg-secondary mb-2">Trajet terminé</span>
-                                {% elseif booking.status.value == 'CANCELLED_BY_PASSENGER' %}
-                                    <span class="badge bg-warning text-dark mb-2">Annulée par vous</span>
-                                {% else %}
-                                    <span class="badge bg-danger mb-2">Annulée par le conducteur</span>
-                                {% endif %}
+                                <span class="badge badge-surface mb-2">Trajet terminé</span>
                                 <div class="fw-bold fs-5">
                                     {{ booking.fromStop.city.name }} &rarr; {{ booking.toStop.city.name }}
                                 </div>
@@ -119,18 +113,15 @@
                                         {{ booking.trip.driver.fullName }}
                                     </a>
                                     &bull; {{ booking.seats }} place(s) &bull; Prix : {{ booking.price }} MAD
-                                    {% if booking.refundAmount is not null %}
-                                        &bull; <strong>Remboursé : {{ booking.refundAmount }} MAD</strong>
-                                    {% endif %}
                                 </div>
                             </div>
 
                             <div class="col-md-6">
                                 {% if isCompletedAndConfirmed and not alreadyReviewed %}
-                                    <form method="post" action="{{ path('app_booking_review', {id: booking.id}) }}" class="bg-light p-3 rounded border">
+                                    <form method="post" action="{{ path('app_booking_review', {id: booking.id}) }}" class="p-3 rounded border" style="background-color: var(--surface-2);">
                                         <input type="hidden" name="_token" value="{{ csrf_token('review_booking_' ~ booking.id) }}">
                                         <div class="fw-semibold small mb-2">
-                                            <i class="bi bi-star-fill text-warning me-1"></i>Noter le conducteur ({{ booking.trip.driver.fullName }})
+                                            <i class="bi bi-star-fill me-1" style="color: var(--accent);"></i>Noter le conducteur ({{ booking.trip.driver.fullName }})
                                         </div>
                                         <div class="row g-2 align-items-center">
                                             <div class="col-sm-3">
@@ -146,15 +137,51 @@
                                                 <input type="text" name="comment" class="form-control form-control-sm" placeholder="Votre commentaire (optionnel)">
                                             </div>
                                             <div class="col-sm-3 d-grid">
-                                                <button type="submit" class="btn btn-brand btn-sm fw-semibold">Envoyer l'avis</button>
+                                                <button type="submit" class="btn btn-lime btn-sm">Envoyer l'avis</button>
                                             </div>
                                         </div>
                                     </form>
                                 {% elseif isCompletedAndConfirmed and alreadyReviewed %}
-                                    <div class="text-end text-success small fw-semibold">
+                                    <div class="text-end small fw-semibold" style="color: var(--accent);">
                                         <i class="bi bi-check-circle-fill me-1"></i>Avis déjà publié pour ce trajet
                                     </div>
                                 {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<h2 class="h5 fw-bold mb-3">
+    <i class="bi bi-x-octagon text-muted me-1"></i>Réservations annulées ({{ cancelledBookings|length }})
+</h2>
+
+{% if cancelledBookings is empty %}
+    <div class="card">
+        <div class="card-body p-4 text-center text-muted">
+            Aucune réservation annulée.
+        </div>
+    </div>
+{% else %}
+    <div class="row g-3">
+        {% for booking in cancelledBookings %}
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div>
+                            {% if booking.status.value == 'CANCELLED_BY_PASSENGER' %}
+                                <span class="badge badge-surface mb-2">Annulée par vous</span>
+                            {% else %}
+                                <span class="badge badge-danger-soft mb-2">Annulée par le conducteur</span>
+                            {% endif %}
+                            <div class="fw-bold">
+                                {{ booking.fromStop.city.name }} &rarr; {{ booking.toStop.city.name }}
+                            </div>
+                            <div class="small text-muted">
+                                Prix initial : {{ booking.price }} MAD &bull; Remboursé : <strong class="text-white">{{ booking.refundAmount ?? '0.00' }} MAD</strong>
                             </div>
                         </div>
                     </div>

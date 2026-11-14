@@ -12,6 +12,7 @@ use App\Exception\InvalidCancellationException;
 use App\Exception\InvalidReviewException;
 use App\Repository\BookingRepository;
 use App\Repository\ReviewRepository;
+use App\Security\Voter\BookingVoter;
 use App\Service\CancellationService;
 use App\Service\ReviewService;
 use Psr\Clock\ClockInterface;
@@ -42,6 +43,7 @@ class PassengerController extends AbstractController
 
         $upcomingBookings = [];
         $pastBookings = [];
+        $cancelledBookings = [];
         $refundPreviews = [];
         $reviewedBookingIds = [];
 
@@ -49,8 +51,13 @@ class PassengerController extends AbstractController
             $trip = $booking->getTrip();
             $depTime = $booking->getFromStop()?->getDepartureTime() ?? $booking->getFromStop()?->getArrivalTime();
 
-            $isUpcoming = BookingStatus::CONFIRMED === $booking->getStatus()
-                && null !== $trip
+            if (BookingStatus::CONFIRMED !== $booking->getStatus()) {
+                $cancelledBookings[] = $booking;
+
+                continue;
+            }
+
+            $isUpcoming = null !== $trip
                 && TripStatus::PUBLISHED === $trip->getStatus()
                 && null !== $depTime
                 && $depTime > $now;
@@ -75,8 +82,24 @@ class PassengerController extends AbstractController
         return $this->render('passenger/bookings.html.twig', [
             'upcomingBookings' => $upcomingBookings,
             'pastBookings' => $pastBookings,
+            'cancelledBookings' => $cancelledBookings,
             'refundPreviews' => $refundPreviews,
             'reviewedBookingIds' => $reviewedBookingIds,
+        ]);
+    }
+
+    #[Route('/mes-reservations/{id}/annuler', name: 'app_booking_cancel_confirm', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function confirmCancel(
+        Booking $booking,
+        CancellationService $cancellationService,
+    ): Response {
+        $this->denyAccessUnlessGranted(BookingVoter::CANCEL, $booking);
+
+        $preview = $cancellationService->previewPassengerRefund($booking);
+
+        return $this->render('passenger/confirm_cancel.html.twig', [
+            'booking' => $booking,
+            'preview' => $preview,
         ]);
     }
 
@@ -86,6 +109,8 @@ class PassengerController extends AbstractController
         Request $request,
         CancellationService $cancellationService,
     ): Response {
+        $this->denyAccessUnlessGranted(BookingVoter::CANCEL, $booking);
+
         if (!$this->isCsrfTokenValid('cancel_booking_'.$booking->getId(), (string) $request->request->get('_token'))) {
             $this->addFlash('danger', 'Jeton CSRF invalide.');
 
@@ -118,6 +143,8 @@ class PassengerController extends AbstractController
         Request $request,
         ReviewService $reviewService,
     ): Response {
+        $this->denyAccessUnlessGranted(BookingVoter::REVIEW, $booking);
+
         if (!$this->isCsrfTokenValid('review_booking_'.$booking->getId(), (string) $request->request->get('_token'))) {
             $this->addFlash('danger', 'Jeton CSRF invalide.');
 

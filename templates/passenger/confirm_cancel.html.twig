@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Confirmer l'annulation — AtlasCovoit Maroc{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <h1 class="h4 fw-bold mb-3">Confirmer l'annulation de la réservation #{{ booking.id }}</h1>
+                <p class="text-muted small mb-3">
+                    Portion : <strong class="text-white">{{ booking.fromStop.city.name }} &rarr; {{ booking.toStop.city.name }}</strong>
+                    &bull; Départ prévu le {{ booking.fromStop.departureTime|date('d/m/Y à H:i') }}
+                </p>
+
+                <div class="p-3 rounded border mb-4" style="background-color: var(--surface-2);">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted">Prix payé ({{ booking.seats }} place(s))</span>
+                        <strong class="text-white">{{ booking.price }} MAD</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted">Palier de remboursement applicable</span>
+                        <span class="badge badge-lime">{{ preview.percentage }} %</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <span class="fw-bold">Remboursement prévu</span>
+                        <span class="fs-5 fw-extrabold" style="color: var(--accent);">
+                            {{ preview.percentage }} % ({{ preview.amount }} MAD)
+                        </span>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between gap-2">
+                    <a href="{{ path('app_my_bookings') }}" class="btn btn-outline-light">
+                        Retour à mes réservations
+                    </a>
+                    <form method="post" action="{{ path('app_booking_cancel', {id: booking.id}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('cancel_booking_' ~ booking.id) }}">
+                        <button type="submit" class="btn btn-danger">
+                            Confirmer l'annulation ({{ preview.percentage }} % : {{ preview.amount }} MAD)
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
