@@ -12,6 +12,7 @@ RUN apk add --no-cache \
         intl \
         zip \
         opcache \
+        bcmath \
     && git config --global --add safe.directory /var/www/html
 
 # Installation de Composer depuis l'image officielle
