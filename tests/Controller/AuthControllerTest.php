@@ -83,6 +83,18 @@ class AuthControllerTest extends WebTestCase
         $user = $this->em->getRepository(User::class)->findOneBy(['email' => 'amina@covoiturage.ma']);
         self::assertNotNull($user);
         self::assertContains('ROLE_USER', $user->getRoles());
+
+        // 3. Email déjà utilisé (contrainte UniqueEntity)
+        $crawler = $this->client->request('GET', '/inscription');
+        $form = $crawler->selectButton('S\'inscrire')->form([
+            'registration_form[firstName]' => 'Amina2',
+            'registration_form[lastName]' => 'El Fassi',
+            'registration_form[email]' => 'amina@covoiturage.ma',
+            'registration_form[phone]' => '+212 6 62 00 11 99',
+            'registration_form[plainPassword]' => 'secret1234',
+        ]);
+        $this->client->submit($form);
+        self::assertResponseStatusCodeSame(422);
     }
 
     public function testLoginSuccessAndFailure(): void
@@ -116,11 +128,14 @@ class AuthControllerTest extends WebTestCase
 
     public function testAccessControlForAnonymousUserAndAdminArea(): void
     {
-        // Visiteur anonyme redirigé vers /connexion sur /mes-reservations et /trajets/nouveau
+        // Visiteur anonyme redirigé vers /connexion sur /mes-reservations, /trajets/nouveau et /trajets/1/reserver
         $this->client->request('GET', '/mes-reservations');
         self::assertResponseRedirects('/connexion');
 
         $this->client->request('GET', '/trajets/nouveau');
+        self::assertResponseRedirects('/connexion');
+
+        $this->client->request('POST', '/trajets/1/reserver');
         self::assertResponseRedirects('/connexion');
 
         // Utilisateur ROLE_USER reçoit 403 Forbidden sur /admin
