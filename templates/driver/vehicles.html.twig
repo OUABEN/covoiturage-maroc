@@ -46,10 +46,17 @@
                 {% else %}
                     <div class="list-group list-group-flush">
                         {% for v in vehicles %}
-                            <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>{{ v.brand }} {{ v.model }}</strong>
-                                    <span class="text-muted small ms-2">({{ v.color }} &bull; {{ v.seats }} places)</span>
+                            <div class="list-group-item px-0 d-flex justify-content-between align-items-center gap-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    {% include 'components/car_image.html.twig' with {
+                                        seats: v.seats,
+                                        label: v.brand ~ ' ' ~ v.model,
+                                        displayHeight: 44
+                                    } %}
+                                    <div>
+                                        <strong>{{ v.brand }} {{ v.model }}</strong>
+                                        <span class="text-muted small ms-2">({{ v.color }} &bull; {{ v.seats }} places)</span>
+                                    </div>
                                 </div>
                                 <form method="post" action="{{ path('app_vehicle_delete', {id: v.id}) }}">
                                     <input type="hidden" name="_token" value="{{ csrf_token('delete_vehicle_' ~ v.id) }}">

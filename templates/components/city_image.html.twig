@@ -1,0 +1,41 @@
+{#
+    Reusable City Image Component (with 2-size WebP srcset + dark gradient fallback)
+    Parameters:
+    - cityName: string
+    - width: int (default 400)
+    - height: int (default 260)
+    - class: string (default 'w-100 rounded-3 object-fit-cover')
+#}
+{% set normalized = cityName|lower|replace({'è': 'e', 'é': 'e', 'ê': 'e', ' ': '-'}) %}
+{% set knownSlugs = ['agadir', 'marrakech', 'essaouira', 'casablanca', 'rabat', 'fes', 'tiznit', 'taroudant', 'safi', 'el-jadida'] %}
+{% set matchedSlug = null %}
+{% for slug in knownSlugs %}
+    {% if slug in normalized %}
+        {% set matchedSlug = slug %}
+    {% endif %}
+{% endfor %}
+
+<div class="city-thumb-wrapper position-relative overflow-hidden rounded-3" style="background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); border: 1px solid var(--border);">
+    {% if matchedSlug %}
+        <img src="/images/cities/{{ matchedSlug }}.webp"
+             srcset="/images/cities/{{ matchedSlug }}-sm.webp 400w, /images/cities/{{ matchedSlug }}.webp 800w"
+             sizes="(max-width: 768px) 400px, 800px"
+             width="{{ width ?? 400 }}"
+             height="{{ height ?? 260 }}"
+             loading="lazy"
+             decoding="async"
+             alt="Illustration nocturne de {{ cityName }} au Maroc"
+             class="{{ class ?? 'w-100 object-fit-cover d-block' }}"
+             style="height: {{ height ?? 140 }}px;"
+             onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');">
+        <div class="d-none align-items-center justify-content-center p-3 text-center fw-bold"
+             style="height: {{ height ?? 140 }}px; background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
+            <span><i class="bi bi-geo-alt-fill me-1" style="color: var(--accent);" aria-hidden="true"></i>{{ cityName }}</span>
+        </div>
+    {% else %}
+        <div class="d-flex align-items-center justify-content-center p-3 text-center fw-bold"
+             style="height: {{ height ?? 140 }}px; background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
+            <span><i class="bi bi-geo-alt-fill me-1" style="color: var(--accent);" aria-hidden="true"></i>{{ cityName }}</span>
+        </div>
+    {% endif %}
+</div>
