@@ -1,0 +1,25 @@
+{#
+    Reusable Card Component
+    Parameters:
+    - title: string|null
+    - subtitle: string|null
+    - interactive: bool (default false)
+    - padding: string (default 'p-4')
+    - extraClass: string (default '')
+    - content: string (optional if included with block)
+#}
+<div class="card {{ (interactive ?? false) ? 'card-interactive' : '' }} {{ extraClass ?? '' }}">
+    <div class="card-body {{ padding ?? 'p-4' }}">
+        {% if title is defined and title %}
+            <div class="mb-3">
+                <h3 class="h5 fw-bold mb-1">{{ title }}</h3>
+                {% if subtitle is defined and subtitle %}
+                    <p class="text-muted small mb-0">{{ subtitle }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if content is defined %}
+            {{ content|raw }}
+        {% endif %}
+    </div>
+</div>

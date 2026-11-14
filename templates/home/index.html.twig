@@ -1,25 +1,50 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Rechercher un trajet — AtlasCovoit Maroc{% endblock %}
+{% block title %}
+    {% if isSearched %}
+        Trajets {{ selectedFrom.name }} &rarr; {{ selectedTo.name }} — AtlasCovoit Maroc
+    {% else %}
+        AtlasCovoit Maroc — Covoiturage Régional par Segments
+    {% endif %}
+{% endblock %}
 
-{% block body %}
-<div class="p-4 p-md-5 mb-4 rounded-3 bg-brand text-white shadow-sm">
-    <div class="row align-items-center g-4">
-        <div class="col-lg-7">
-            <span class="badge bg-warning text-dark fw-semibold mb-2">Covoiturage Régional Maroc</span>
-            <h1 class="display-6 fw-bold mb-2">Voyagez d'une ville à l'autre, étape par étape</h1>
-            <p class="lead mb-0 opacity-90">
-                Réservez uniquement la portion de trajet dont vous avez besoin (ex. Agadir &rarr; Marrakech ou Marrakech &rarr; Casablanca) au prix exact du segment.
-            </p>
+{% block hero %}
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center g-4 mb-4">
+            <div class="col-lg-8">
+                <div class="mb-3">
+                    {% include 'components/badge.html.twig' with {
+                        text: 'Covoiturage Régional Multi-Étapes au Maroc',
+                        variant: 'lime',
+                        icon: 'lightning-charge-fill'
+                    } %}
+                </div>
+                <h1 class="display-5 fw-extrabold mb-3">
+                    Voyagez d'une ville à l'autre, <span class="text-highlight-lime">étape par étape</span>.
+                </h1>
+                <p class="lead text-muted mb-0" style="max-width: 680px;">
+                    Réservez uniquement la portion de trajet dont vous avez besoin — <strong class="text-white">Agadir &rarr; Marrakech</strong> ou <strong class="text-white">Marrakech &rarr; Casablanca</strong> — au prix exact du segment traversé.
+                </p>
+            </div>
+            <div class="col-lg-4 d-none d-lg-flex justify-content-end">
+                <div class="p-4 rounded-4 border" style="background-color: var(--surface); max-width: 320px;">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge badge-lime">100%</span>
+                        <span class="small fw-bold text-white">Places réutilisées par segment</span>
+                    </div>
+                    <p class="small text-muted mb-0">
+                        Une place libérée à Marrakech est immédiatement disponible pour un nouveau passager vers Casablanca.
+                    </p>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <div class="card border-0 shadow mt-4 text-dark">
-        <div class="card-body p-3 p-md-4">
-            <form method="get" action="{{ path('app_home') }}" class="row g-3 align-items-end">
+        <div class="search-floating-card">
+            <form method="get" action="{{ path('app_home') }}" class="row g-3 align-items-end" aria-label="Rechercher un trajet">
                 <div class="col-md-4">
-                    <label for="from" class="form-label fw-semibold small text-muted mb-1">
-                        <i class="bi bi-geo-alt-fill text-success me-1"></i>Ville de départ
+                    <label for="from" class="form-label mb-1">
+                        <i class="bi bi-record-circle me-1" style="color: var(--accent);" aria-hidden="true"></i>Ville de départ
                     </label>
                     <select name="from" id="from" class="form-select" required>
                         <option value="">Choisir une ville de départ...</option>
@@ -32,8 +57,8 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label for="to" class="form-label fw-semibold small text-muted mb-1">
-                        <i class="bi bi-pin-map-fill text-danger me-1"></i>Ville d'arrivée
+                    <label for="to" class="form-label mb-1">
+                        <i class="bi bi-geo-alt-fill me-1" style="color: var(--accent);" aria-hidden="true"></i>Ville d'arrivée
                     </label>
                     <select name="to" id="to" class="form-select" required>
                         <option value="">Choisir une ville d'arrivée...</option>
@@ -46,110 +71,292 @@
                 </div>
 
                 <div class="col-md-2">
-                    <label for="date" class="form-label fw-semibold small text-muted mb-1">
-                        <i class="bi bi-calendar-event me-1"></i>Date
+                    <label for="date" class="form-label mb-1">
+                        <i class="bi bi-calendar-event me-1" style="color: var(--accent);" aria-hidden="true"></i>Date de départ
                     </label>
                     <input type="date" name="date" id="date" class="form-control" value="{{ selectedDate }}" required>
                 </div>
 
                 <div class="col-md-2 d-grid">
-                    <button type="submit" class="btn btn-brand py-2 fw-semibold">
-                        <i class="bi bi-search me-1"></i>Rechercher
+                    <button type="submit" class="btn btn-lime py-2">
+                        <i class="bi bi-search me-1" aria-hidden="true"></i>Rechercher
                     </button>
                 </div>
             </form>
         </div>
     </div>
-</div>
+</section>
+{% endblock %}
 
+{% block body %}
 {% if isSearched %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="h4 fw-bold mb-0">
-            Trajets de {{ selectedFrom.name }} à {{ selectedTo.name }}
-            <span class="text-muted fw-normal fs-6">({{ results|length }} résultat{{ results|length > 1 ? 's' : '' }})</span>
-        </h2>
-    </div>
-
-    {% if results is empty %}
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-5 text-center">
-                <i class="bi bi-compass fs-1 text-muted"></i>
-                <h3 class="h5 fw-bold mt-3">Aucun trajet disponible pour cette recherche</h3>
-                <p class="text-muted mb-0">
-                    Essayez une autre date ou vérifiez les villes de départ et d'arrivée.
-                </p>
+    <section aria-label="Résultats de recherche" class="animate-fade-up">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <h2 class="h4 fw-bold mb-1">
+                    Trajets de <span style="color: var(--accent);">{{ selectedFrom.name }}</span> à <span style="color: var(--accent);">{{ selectedTo.name }}</span>
+                </h2>
+                <div class="text-muted small">
+                    {{ results|length }} résultat{{ results|length > 1 ? 's' : '' }} disponible{{ results|length > 1 ? 's' : '' }} pour le {{ selectedDate|date('d/m/Y') }}
+                </div>
             </div>
+
+            {% if results|length > 1 %}
+                <form method="get" action="{{ path('app_home') }}" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="from" value="{{ selectedFrom.id }}">
+                    <input type="hidden" name="to" value="{{ selectedTo.id }}">
+                    <input type="hidden" name="date" value="{{ selectedDate }}">
+                    <label for="sort" class="small text-muted text-nowrap mb-0">Trier par :</label>
+                    <select name="sort" id="sort" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="departure_asc" {{ selectedSort == 'departure_asc' ? 'selected' : '' }}>Départ le plus tôt</option>
+                        <option value="price_asc" {{ selectedSort == 'price_asc' ? 'selected' : '' }}>Prix croissant</option>
+                        <option value="seats_desc" {{ selectedSort == 'seats_desc' ? 'selected' : '' }}>Places disponibles</option>
+                    </select>
+                </form>
+            {% endif %}
         </div>
-    {% else %}
-        <div class="row g-3">
-            {% for item in results %}
-                {% set trip = item.trip %}
-                {% set driver = trip.driver %}
-                {% set ratingInfo = driverRatings[driver.id] ?? {'average': null, 'count': 0} %}
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <div class="row align-items-center g-3">
-                                <div class="col-md-5">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div>
-                                            <div class="fw-bold fs-5">
-                                                {{ item.fromStop.departureTime|date('H:i') }}
-                                                <span class="text-muted mx-1">&rarr;</span>
-                                                {{ (item.toStop.arrivalTime ?? item.toStop.departureTime)|date('H:i') }}
+
+        {% if results is empty %}
+            <div class="card p-5 text-center">
+                <div class="mx-auto mb-3 d-inline-flex align-items-center justify-content-center rounded-circle"
+                     style="width: 68px; height: 68px; background-color: var(--surface-2); border: 1px solid var(--border);">
+                    <i class="bi bi-compass fs-2" style="color: var(--accent);" aria-hidden="true"></i>
+                </div>
+                <h3 class="h5 fw-bold mb-2">Aucun trajet disponible pour cette recherche</h3>
+                <p class="text-muted mb-3 mx-auto" style="max-width: 460px;">
+                    Aucun conducteur n'a encore publié de trajet couvrant la portion <strong>{{ selectedFrom.name }} &rarr; {{ selectedTo.name }}</strong> à cette date.
+                </p>
+                <div>
+                    <a href="{{ path('app_home') }}" class="btn btn-outline-light btn-sm">
+                        <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Réinitialiser la recherche
+                    </a>
+                </div>
+            </div>
+        {% else %}
+            <div class="row g-3">
+                {% for item in results %}
+                    {% set trip = item.trip %}
+                    {% set driver = trip.driver %}
+                    {% set ratingInfo = driverRatings[driver.id] ?? {'average': null, 'count': 0} %}
+                    <div class="col-12">
+                        <div class="card card-interactive">
+                            <div class="card-body p-4">
+                                <div class="row align-items-center g-4">
+                                    {# Point-to-point visual route timeline #}
+                                    <div class="col-lg-5">
+                                        <div class="route-timeline mb-2">
+                                            <div>
+                                                <div class="fw-bold fs-4 text-white">{{ item.fromStop.departureTime|date('H:i') }}</div>
+                                                <div class="fw-semibold small" style="color: var(--accent);">{{ item.fromStop.city.name }}</div>
                                             </div>
-                                            <div class="fw-semibold text-dark">
-                                                {{ item.fromStop.city.name }}
-                                                <i class="bi bi-arrow-right mx-1 text-muted"></i>
-                                                {{ item.toStop.city.name }}
+                                            <div class="route-connector" aria-hidden="true">
+                                                <span class="route-dot"></span>
+                                                <span class="route-line"></span>
+                                                <i class="bi bi-car-front-fill small" style="color: var(--accent);"></i>
+                                                <span class="route-line"></span>
+                                                <span class="route-dot route-dot-end"></span>
                                             </div>
-                                            <div class="small text-muted mt-1">
-                                                <i class="bi bi-signpost-2 me-1"></i>
-                                                Itinéraire complet :
-                                                {% for stop in trip.stops %}
-                                                    {{ stop.city.name }}{% if not loop.last %} &rarr; {% endif %}
-                                                {% endfor %}
+                                            <div class="text-end">
+                                                <div class="fw-bold fs-4 text-white">{{ (item.toStop.arrivalTime ?? item.toStop.departureTime)|date('H:i') }}</div>
+                                                <div class="fw-semibold small" style="color: var(--accent);">{{ item.toStop.city.name }}</div>
                                             </div>
                                         </div>
+                                        <div class="small text-muted">
+                                            <i class="bi bi-signpost-2 me-1" aria-hidden="true"></i>Itinéraire complet :
+                                            {% for stop in trip.stops %}
+                                                <span class="{{ stop.id in [item.fromStop.id, item.toStop.id] ? 'text-white fw-semibold' : '' }}">{{ stop.city.name }}</span>{% if not loop.last %} &rarr; {% endif %}
+                                            {% endfor %}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div class="col-md-4">
-                                    <div class="fw-semibold">
-                                        <i class="bi bi-person-circle me-1 text-secondary"></i>
-                                        <a href="{{ path('app_profile_show', {id: driver.id}) }}" class="text-decoration-none text-dark">
-                                            {{ driver.fullName }}
+                                    {# Driver profile & seats badge #}
+                                    <div class="col-lg-4">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="avatar-initials" aria-hidden="true">
+                                                {{ driver.firstName|slice(0, 1)|upper }}{{ driver.lastName|slice(0, 1)|upper }}
+                                            </span>
+                                            <div>
+                                                <a href="{{ path('app_profile_show', {id: driver.id}) }}" class="fw-bold text-decoration-none text-white">
+                                                    {{ driver.fullName }}
+                                                </a>
+                                                <div class="small mt-1">
+                                                    {% include 'components/rating.html.twig' with {
+                                                        average: ratingInfo.average,
+                                                        count: ratingInfo.count
+                                                    } %}
+                                                </div>
+                                                <div class="small text-muted mt-1">
+                                                    <i class="bi bi-car-front me-1" aria-hidden="true"></i>{{ trip.vehicle.brand }} {{ trip.vehicle.model }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            {% if item.availableSeats <= 1 %}
+                                                <span class="badge badge-danger-soft">
+                                                    <i class="bi bi-fire me-1" aria-hidden="true"></i>Dernière ! {{ item.availableSeats }} place(s) restante(s)
+                                                </span>
+                                            {% else %}
+                                                <span class="badge badge-surface">
+                                                    <i class="bi bi-person-check me-1" style="color: var(--accent);" aria-hidden="true"></i>{{ item.availableSeats }} place(s) restante(s) sur cette portion
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    {# Price & Action #}
+                                    <div class="col-lg-3 text-lg-end">
+                                        <div class="fs-3 fw-extrabold" style="color: var(--accent);">{{ item.portionPrice }} MAD</div>
+                                        <div class="small text-muted mb-3">par passager sur cette portion</div>
+                                        <a href="{{ path('app_trip_show', {id: trip.id, from: item.fromStop.id, to: item.toStop.id}) }}" class="btn btn-lime w-100 w-lg-auto">
+                                            Voir &amp; Réserver <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
                                         </a>
                                     </div>
-                                    <div class="small text-muted">
-                                        {% if ratingInfo.average is not null %}
-                                            <span class="text-warning"><i class="bi bi-star-fill"></i></span>
-                                            <strong>{{ ratingInfo.average }}/5</strong> ({{ ratingInfo.count }} avis)
-                                        {% else %}
-                                            <span>Nouveau conducteur</span>
-                                        {% endif %}
-                                        &bull; {{ trip.vehicle.brand }} {{ trip.vehicle.model }}
-                                    </div>
-                                    <div class="mt-1">
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                            <i class="bi bi-person-check me-1"></i>{{ item.availableSeats }} place(s) restante(s) sur cette portion
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3 text-md-end">
-                                    <div class="fs-4 fw-bold text-dark">{{ item.portionPrice }} MAD</div>
-                                    <div class="small text-muted mb-2">par passager</div>
-                                    <a href="{{ path('app_trip_show', {id: trip.id, from: item.fromStop.id, to: item.toStop.id}) }}" class="btn btn-brand fw-semibold">
-                                        Voir &amp; Réserver <i class="bi bi-chevron-right ms-1"></i>
-                                    </a>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+{% else %}
+    {# Section 1 : Comment ça marche (3 étapes) #}
+    <section class="py-4 mb-5" aria-labelledby="how-it-works-heading">
+        <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
+            <div>
+                <span class="small fw-bold text-uppercase" style="color: var(--accent); letter-spacing: 0.08em;">Fonctionnement</span>
+                <h2 id="how-it-works-heading" class="h3 fw-bold mb-0 mt-1">Comment ça marche ?</h2>
+            </div>
+            <p class="text-muted small mb-0">Un modèle pensé pour les grands axes régionaux marocains</p>
         </div>
-    {% endif %}
+
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 card-interactive">
+                    <div class="card-body p-4">
+                        <div class="d-inline-flex align-items-center justify-content-center rounded-3 mb-3"
+                             style="width: 48px; height: 48px; background-color: rgba(198, 244, 50, 0.12); color: var(--accent);">
+                            <i class="bi bi-signpost-split fs-4" aria-hidden="true"></i>
+                        </div>
+                        <h3 class="h5 fw-bold mb-2">1. Choisissez votre portion</h3>
+                        <p class="text-muted small mb-0">
+                            Sélectionnez votre ville de montée et de descente parmi les arrêts intermédiaires du trajet (ex. Agadir &rarr; Marrakech sur un trajet Agadir &rarr; Casablanca).
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 card-interactive">
+                    <div class="card-body p-4">
+                        <div class="d-inline-flex align-items-center justify-content-center rounded-3 mb-3"
+                             style="width: 48px; height: 48px; background-color: rgba(198, 244, 50, 0.12); color: var(--accent);">
+                            <i class="bi bi-shield-check fs-4" aria-hidden="true"></i>
+                        </div>
+                        <h3 class="h5 fw-bold mb-2">2. Réservez au prix juste</h3>
+                        <p class="text-muted small mb-0">
+                            Le tarif est calculé uniquement sur les segments que vous parcourez et figé dès la réservation. Aucune surréservation possible grâce au verrouillage transactionnel.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 card-interactive">
+                    <div class="card-body p-4">
+                        <div class="d-inline-flex align-items-center justify-content-center rounded-3 mb-3"
+                             style="width: 48px; height: 48px; background-color: rgba(198, 244, 50, 0.12); color: var(--accent);">
+                            <i class="bi bi-stars fs-4" aria-hidden="true"></i>
+                        </div>
+                        <h3 class="h5 fw-bold mb-2">3. Voyagez &amp; évaluez</h3>
+                        <p class="text-muted small mb-0">
+                            En cas de changement d'horaire supérieur à 30 minutes ou d'annulation anticipée (+24h), vous êtes remboursé à 100 %. Échangez un avis vérifié à l'arrivée.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {# Section 2 : Trajets populaires #}
+    <section class="py-2 mb-4" aria-labelledby="popular-trips-heading">
+        <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
+            <div>
+                <span class="small fw-bold text-uppercase" style="color: var(--accent); letter-spacing: 0.08em;">Axes fréquents</span>
+                <h2 id="popular-trips-heading" class="h3 fw-bold mb-0 mt-1">Trajets populaires au Maroc</h2>
+            </div>
+            {% if app.user %}
+                <a href="{{ path('app_trip_new') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Proposer un trajet
+                </a>
+            {% endif %}
+        </div>
+
+        <div class="row g-4">
+            {% if popularTrips is not empty %}
+                {% for trip in popularTrips %}
+                    {% set stops = trip.stops %}
+                    {% if stops|length >= 2 %}
+                        <div class="col-md-4">
+                            <div class="card h-100 card-interactive">
+                                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="badge badge-surface">
+                                                <i class="bi bi-calendar3 me-1" style="color: var(--accent);" aria-hidden="true"></i>{{ stops|first.departureTime|date('d/m/Y H:i') }}
+                                            </span>
+                                            <span class="badge badge-lime">{{ stops|length }} étapes</span>
+                                        </div>
+                                        <h3 class="h5 fw-bold mb-2">
+                                            {{ stops|first.city.name }} <span style="color: var(--accent);">&rarr;</span> {{ stops|last.city.name }}
+                                        </h3>
+                                        <p class="small text-muted mb-3">
+                                            {% for s in stops %}
+                                                {{ s.city.name }}{% if not loop.last %} &bull; {% endif %}
+                                            {% endfor %}
+                                        </p>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                                        <div class="small text-muted">
+                                            Conducteur : <strong class="text-white">{{ trip.driver.firstName }}</strong>
+                                        </div>
+                                        <a href="{{ path('app_trip_show', {id: trip.id}) }}" class="btn btn-outline-light btn-sm">
+                                            Détails <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body p-4">
+                            <span class="badge badge-lime mb-2">Axe Atlantique &amp; Sud</span>
+                            <h3 class="h5 fw-bold">Agadir &rarr; Marrakech &rarr; Casablanca</h3>
+                            <p class="small text-muted mb-0">À partir de 120 MAD par portion</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body p-4">
+                            <span class="badge badge-lime mb-2">Route Côtière</span>
+                            <h3 class="h5 fw-bold">Agadir &rarr; Essaouira &rarr; Safi &rarr; El Jadida</h3>
+                            <p class="small text-muted mb-0">À partir de 70 MAD par portion</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body p-4">
+                            <span class="badge badge-lime mb-2">Axe Impérial</span>
+                            <h3 class="h5 fw-bold">Marrakech &rarr; Casablanca &rarr; Rabat &rarr; Fès</h3>
+                            <p class="small text-muted mb-0">À partir de 50 MAD par portion</p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </section>
 {% endif %}
 {% endblock %}

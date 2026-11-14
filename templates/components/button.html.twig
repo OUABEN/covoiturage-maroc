@@ -1,0 +1,30 @@
+{#
+    Reusable Button Component
+    Parameters:
+    - label: string
+    - href: string|null (renders <a> if set, <button> otherwise)
+    - type: 'button'|'submit' (default 'submit')
+    - variant: 'lime'|'outline'|'danger' (default 'lime')
+    - icon: string|null (Bootstrap Icon class without 'bi-')
+    - size: 'sm'|'md'|'lg' (default 'md')
+    - extraClass: string (default '')
+#}
+{% set variantClass = {
+    'lime': 'btn-lime',
+    'outline': 'btn-outline-light',
+    'danger': 'btn-danger',
+}[variant ?? 'lime'] ?? 'btn-lime' %}
+{% set sizeClass = (size ?? 'md') == 'sm' ? 'btn-sm' : ((size ?? 'md') == 'lg' ? 'btn-lg' : '') %}
+{% set classes = ('btn ' ~ variantClass ~ ' ' ~ sizeClass ~ ' ' ~ (extraClass ?? ''))|trim %}
+
+{% if href is defined and href %}
+    <a href="{{ href }}" class="{{ classes }}">
+        {% if icon is defined and icon %}<i class="bi bi-{{ icon }} me-1" aria-hidden="true"></i>{% endif %}
+        <span>{{ label }}</span>
+    </a>
+{% else %}
+    <button type="{{ type ?? 'submit' }}" class="{{ classes }}">
+        {% if icon is defined and icon %}<i class="bi bi-{{ icon }} me-1" aria-hidden="true"></i>{% endif %}
+        <span>{{ label }}</span>
+    </button>
+{% endif %}

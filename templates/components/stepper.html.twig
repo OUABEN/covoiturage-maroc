@@ -1,0 +1,26 @@
+{#
+    Reusable Stepper Component
+    Parameters:
+    - steps: array of { number: int, title: string, subtitle: string|null }
+    - activeStep: int (default 1)
+#}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 p-3 rounded-4 border" style="background-color: var(--surface);">
+    {% for step in steps %}
+        {% set isActive = (activeStep ?? 1) >= step.number %}
+        <div class="d-flex align-items-center gap-2">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle fw-bold small"
+                  style="width: 32px; height: 32px; background-color: {{ isActive ? 'var(--accent)' : 'var(--surface-2)' }}; color: {{ isActive ? 'var(--accent-contrast)' : 'var(--muted)' }}; border: 1px solid {{ isActive ? 'var(--accent)' : 'var(--border)' }};">
+                {{ step.number }}
+            </span>
+            <div>
+                <div class="fw-bold small {{ isActive ? 'text-white' : 'text-muted' }}">{{ step.title }}</div>
+                {% if step.subtitle is defined and step.subtitle %}
+                    <div class="text-muted" style="font-size: 0.75rem;">{{ step.subtitle }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% if not loop.last %}
+            <div class="d-none d-md-block flex-grow-1 mx-2" style="height: 1px; background-color: var(--border);"></div>
+        {% endif %}
+    {% endfor %}
+</div>

@@ -1,0 +1,16 @@
+{#
+    Reusable Badge Component
+    Parameters:
+    - text: string
+    - variant: 'lime'|'surface'|'danger' (default 'surface')
+    - icon: string|null
+#}
+{% set badgeClass = {
+    'lime': 'badge-lime',
+    'surface': 'badge-surface',
+    'danger': 'badge-danger-soft',
+}[variant ?? 'surface'] ?? 'badge-surface' %}
+<span class="badge {{ badgeClass }}">
+    {% if icon is defined and icon %}<i class="bi bi-{{ icon }} me-1" aria-hidden="true"></i>{% endif %}
+    {{ text }}
+</span>
