@@ -10,12 +10,6 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class PortalPlaceholderController extends AbstractController
 {
-    #[Route('/mes-reservations', name: 'app_my_bookings', methods: ['GET'])]
-    public function myBookings(): Response
-    {
-        return new Response('Mes réservations', Response::HTTP_OK);
-    }
-
     #[Route('/mes-trajets', name: 'app_my_trips', methods: ['GET'])]
     public function myTrips(): Response
     {

@@ -63,26 +63,58 @@ class CancellationService
             throw new InvalidCancellationException('Impossible d\'annuler une réservation après l\'heure de départ.');
         }
 
-        $fullRefundDueToScheduleChange = $this->hasScheduleChangedBeyondTolerance($booking);
-
-        $price = (string) $booking->getPrice();
-        if ($fullRefundDueToScheduleChange || $secondsUntilDeparture > self::SECONDS_24_HOURS) {
-            $refundAmount = bcmul($price, '1.00', 2);
-        } elseif ($secondsUntilDeparture >= self::SECONDS_2_HOURS) {
-            $refundAmount = bcmul($price, '0.50', 2);
-        } else {
-            $refundAmount = '0.00';
-        }
+        $preview = $this->previewPassengerRefund($booking);
 
         $booking
             ->setStatus(BookingStatus::CANCELLED_BY_PASSENGER)
-            ->setRefundAmount($refundAmount)
+            ->setRefundAmount($preview['amount'])
             ->setCancelledAt($now);
 
         $this->em->persist($booking);
         $this->em->flush();
 
         return $booking;
+    }
+
+    /**
+     * Calcule le remboursement théorique (pourcentage 100/50/0 et montant en MAD)
+     * pour affichage préventif avant confirmation ou application lors de l'annulation.
+     *
+     * @return array{percentage: int, amount: string}
+     */
+    public function previewPassengerRefund(Booking $booking): array
+    {
+        $fromStop = $booking->getFromStop();
+        $departureTime = $fromStop?->getDepartureTime() ?? $fromStop?->getArrivalTime();
+        $price = (string) $booking->getPrice();
+
+        if (null === $departureTime) {
+            return ['percentage' => 0, 'amount' => '0.00'];
+        }
+
+        $secondsUntilDeparture = $departureTime->getTimestamp() - $this->clock->now()->getTimestamp();
+        if ($secondsUntilDeparture <= 0) {
+            return ['percentage' => 0, 'amount' => '0.00'];
+        }
+
+        if ($this->hasScheduleChangedBeyondTolerance($booking) || $secondsUntilDeparture > self::SECONDS_24_HOURS) {
+            return [
+                'percentage' => 100,
+                'amount' => bcmul($price, '1.00', 2),
+            ];
+        }
+
+        if ($secondsUntilDeparture >= self::SECONDS_2_HOURS) {
+            return [
+                'percentage' => 50,
+                'amount' => bcmul($price, '0.50', 2),
+            ];
+        }
+
+        return [
+            'percentage' => 0,
+            'amount' => '0.00',
+        ];
     }
 
     /**
