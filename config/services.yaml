@@ -42,3 +42,6 @@ when@test:
 
         App\Repository\:
             resource: '../src/Repository/'
+
+        App\Controller\Admin\:
+            resource: '../src/Controller/Admin/'
