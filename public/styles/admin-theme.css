@@ -1,0 +1,20 @@
+:root {
+    --ea-accent: #C6F432;
+    --ea-accent-contrast: #0B0B0C;
+}
+
+body.ea-dark-scheme {
+    --body-bg: #0B0B0C;
+    --content-bg: #0B0B0C;
+    --sidebar-bg: #141416;
+    --sidebar-border-color: #2A2A2E;
+    --table-cell-border-color: #2A2A2E;
+}
+
+.btn-primary,
+.action-new.btn-primary {
+    background-color: var(--ea-accent) !important;
+    border-color: var(--ea-accent) !important;
+    color: var(--ea-accent-contrast) !important;
+    font-weight: 700 !important;
+}

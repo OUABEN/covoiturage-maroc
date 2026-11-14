@@ -1,4 +1,5 @@
-:root {
+:root,
+[data-theme="dark"] {
     --bg: #0B0B0C;
     --surface: #141416;
     --surface-2: #1C1C1F;
@@ -10,6 +11,7 @@
     --accent-contrast: #0B0B0C;
     --danger: #EF4444;
     --success: #C6F432;
+    --glass-bg: rgba(11, 11, 12, 0.84);
     --radius-card: 16px;
     --radius-btn: 12px;
     --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.45);
@@ -23,6 +25,32 @@
     --bs-card-bg: #141416;
     --bs-card-border-color: #2A2A2E;
     --bs-card-cap-bg: #1C1C1F;
+}
+
+[data-theme="light"] {
+    --bg: #FFFFFF;
+    --surface: #F5F5F5;
+    --surface-2: #E4E4E7;
+    --border: #E4E4E7;
+    --text: #0B0B0C;
+    --muted: #52525B;
+    --accent: #C6F432;
+    --accent-hover: #B8E622;
+    --accent-contrast: #0B0B0C;
+    --danger: #DC2626;
+    --success: #C6F432;
+    --glass-bg: rgba(255, 255, 255, 0.88);
+    --shadow-soft: 0 10px 28px rgba(11, 11, 12, 0.08);
+    --shadow-lime: 0 8px 24px rgba(198, 244, 50, 0.35);
+
+    /* Bootstrap 5 light theme variable overrides */
+    --bs-body-bg: #FFFFFF;
+    --bs-body-color: #0B0B0C;
+    --bs-secondary-color: #52525B;
+    --bs-border-color: #E4E4E7;
+    --bs-card-bg: #F5F5F5;
+    --bs-card-border-color: #E4E4E7;
+    --bs-card-cap-bg: #E4E4E7;
 }
 
 *, *::before, *::after {
@@ -42,6 +70,7 @@ body {
     flex-direction: column;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    transition: background-color 200ms ease, color 200ms ease;
 }
 
 main {
@@ -63,19 +92,25 @@ a:hover {
     color: var(--accent);
 }
 
+[data-theme="light"] a:hover {
+    color: var(--text);
+    text-decoration-color: var(--accent);
+}
+
 :focus-visible {
     outline: 2px solid var(--accent) !important;
     outline-offset: 2px;
-    box-shadow: 0 0 0 4px rgba(198, 244, 50, 0.22) !important;
+    box-shadow: 0 0 0 4px rgba(198, 244, 50, 0.28) !important;
 }
 
-/* Text utilities overrides for dark theme */
+/* Text utilities overrides for dark/light theme */
 .text-muted,
 .text-secondary {
     color: var(--muted) !important;
 }
 
-.text-dark {
+.text-dark,
+.text-white {
     color: var(--text) !important;
 }
 
@@ -83,6 +118,16 @@ a:hover {
 .text-success,
 .text-warning {
     color: var(--accent) !important;
+}
+
+/* In light mode, NEVER render lime text on white: use a lime background pill with #0B0B0C text */
+[data-theme="light"] .text-lime,
+[data-theme="light"] .text-success,
+[data-theme="light"] .text-warning {
+    color: var(--accent-contrast) !important;
+    background-color: var(--accent);
+    padding: 0.05em 0.4em;
+    border-radius: 6px;
 }
 
 .bg-light,
@@ -97,10 +142,12 @@ a:hover {
     border-color: var(--border) !important;
 }
 
-/* Highlighted keyword in Hero */
+/* Highlighted keyword in Hero — lime background pill with Midnight Black #0B0B0C text in both modes (WCAG AAA) */
 .text-highlight-lime {
-    color: var(--accent);
-    position: relative;
+    background-color: var(--accent);
+    color: var(--accent-contrast) !important;
+    padding: 0.04em 0.32em;
+    border-radius: 10px;
     display: inline-block;
 }
 
@@ -124,21 +171,26 @@ a:hover {
 
 .badge-danger-soft {
     background-color: rgba(239, 68, 68, 0.14) !important;
-    color: #FCA5A5 !important;
+    color: var(--danger) !important;
     border: 1px solid rgba(239, 68, 68, 0.35);
     font-weight: 600;
     border-radius: 999px;
     padding: 0.4em 0.85em;
 }
 
+[data-theme="dark"] .badge-danger-soft {
+    color: #FCA5A5 !important;
+}
+
 /* Sticky Glass Navbar */
 .navbar-glass {
-    background-color: rgba(11, 11, 12, 0.84) !important;
+    background-color: var(--glass-bg) !important;
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
     padding-top: 0.85rem;
     padding-bottom: 0.85rem;
+    transition: background-color 200ms ease, border-color 200ms ease;
 }
 
 .navbar-brand {
@@ -172,8 +224,30 @@ a:hover {
 
 .navbar-glass .nav-link:hover,
 .navbar-glass .nav-link.active {
-    color: var(--accent) !important;
-    background-color: rgba(198, 244, 50, 0.08);
+    background-color: var(--accent);
+    color: var(--accent-contrast) !important;
+}
+
+/* Theme Toggle Button */
+.btn-theme-toggle {
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    transition: background-color 200ms ease, border-color 200ms ease, transform 160ms ease;
+}
+
+.btn-theme-toggle:hover {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+    transform: translateY(-1px);
 }
 
 /* Cards & Surfaces */
@@ -184,11 +258,11 @@ a:hover {
     border-radius: var(--radius-card) !important;
     color: var(--text) !important;
     box-shadow: var(--shadow-soft);
-    transition: border-color 180ms ease, transform 180ms ease;
+    transition: background-color 200ms ease, border-color 200ms ease, transform 180ms ease, box-shadow 200ms ease;
 }
 
 .card-interactive:hover {
-    border-color: rgba(198, 244, 50, 0.45) !important;
+    border-color: var(--accent) !important;
     transform: translateY(-2px);
 }
 
@@ -220,6 +294,8 @@ a:hover {
     font-weight: 700 !important;
     border-radius: var(--radius-btn) !important;
     padding: 0.6rem 1.25rem;
+    position: relative;
+    overflow: hidden;
     transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
@@ -251,8 +327,8 @@ a:hover {
 .btn-outline-primary:hover,
 .btn-outline-success:hover {
     border-color: var(--accent) !important;
-    color: var(--accent) !important;
-    background-color: rgba(198, 244, 50, 0.08) !important;
+    background-color: var(--accent) !important;
+    color: var(--accent-contrast) !important;
     transform: translateY(-1px);
 }
 
@@ -260,17 +336,22 @@ a:hover {
 .btn-outline-danger {
     background-color: rgba(239, 68, 68, 0.14) !important;
     border: 1px solid rgba(239, 68, 68, 0.45) !important;
-    color: #FCA5A5 !important;
+    color: var(--danger) !important;
     font-weight: 600 !important;
     border-radius: var(--radius-btn) !important;
     transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+[data-theme="dark"] .btn-danger,
+[data-theme="dark"] .btn-outline-danger {
+    color: #FCA5A5 !important;
 }
 
 .btn-danger:hover,
 .btn-outline-danger:hover {
     background-color: var(--danger) !important;
     border-color: var(--danger) !important;
-    color: var(--text) !important;
+    color: #FFFFFF !important;
 }
 
 /* Forms & Inputs */
@@ -282,7 +363,7 @@ a:hover {
     border-radius: var(--radius-btn) !important;
     padding: 0.65rem 0.95rem;
     font-size: 0.95rem;
-    transition: border-color 160ms ease, box-shadow 160ms ease;
+    transition: background-color 200ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .form-control::placeholder {
@@ -294,7 +375,7 @@ a:hover {
     background-color: var(--surface-2) !important;
     border-color: var(--accent) !important;
     color: var(--text) !important;
-    box-shadow: 0 0 0 3px rgba(198, 244, 50, 0.22) !important;
+    box-shadow: 0 0 0 3px rgba(198, 244, 50, 0.25) !important;
 }
 
 .form-select option {
@@ -314,8 +395,8 @@ a:hover {
     position: relative;
     padding: 3.5rem 0 2.5rem;
     background:
-        radial-gradient(circle at 80% 15%, rgba(198, 244, 50, 0.11), transparent 42%),
-        radial-gradient(circle at 15% 85%, rgba(198, 244, 50, 0.06), transparent 40%);
+        radial-gradient(circle at 80% 15%, rgba(198, 244, 50, 0.14), transparent 42%),
+        radial-gradient(circle at 15% 85%, rgba(198, 244, 50, 0.08), transparent 40%);
     border-bottom: 1px solid var(--border);
 }
 
@@ -324,7 +405,7 @@ a:hover {
     border: 1px solid var(--border) !important;
     border-radius: 20px !important;
     padding: 1.5rem;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+    box-shadow: var(--shadow-soft);
 }
 
 /* Point-to-point Route Timeline in Search Results */
@@ -341,6 +422,7 @@ a:hover {
     align-items: center;
     gap: 0.35rem;
     min-width: 60px;
+    position: relative;
 }
 
 .route-dot {
@@ -360,6 +442,8 @@ a:hover {
     flex: 1;
     height: 2px;
     background: linear-gradient(90deg, var(--accent) 0%, var(--border) 100%);
+    position: relative;
+    overflow: hidden;
 }
 
 /* Initials Avatar */
@@ -367,9 +451,9 @@ a:hover {
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background-color: var(--surface-2);
-    border: 1px solid var(--border);
-    color: var(--accent);
+    background-color: var(--accent);
+    border: 1px solid var(--accent);
+    color: var(--accent-contrast);
     font-weight: 800;
     font-size: 0.95rem;
     display: inline-flex;
@@ -388,14 +472,18 @@ a:hover {
 }
 
 .alert-success {
-    background-color: rgba(198, 244, 50, 0.1) !important;
-    border-color: rgba(198, 244, 50, 0.45) !important;
+    background-color: rgba(198, 244, 50, 0.14) !important;
+    border-color: var(--accent) !important;
     color: var(--text) !important;
 }
 
 .alert-danger {
     background-color: rgba(239, 68, 68, 0.12) !important;
     border-color: rgba(239, 68, 68, 0.45) !important;
+    color: var(--danger) !important;
+}
+
+[data-theme="dark"] .alert-danger {
     color: #FCA5A5 !important;
 }
 
