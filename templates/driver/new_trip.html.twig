@@ -112,6 +112,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const cityOptions = `{% for c in cities %}<option value="{{ c.id }}">{{ c.name|e('js') }}</option>{% endfor %}`;
 
+    async function refreshSuggestedPrices() {
+        const rows = Array.from(container.querySelectorAll('.stop-row'));
+        for (let i = 1; i < rows.length; i++) {
+            const prevCitySelect = rows[i - 1].querySelector('select[name*="[city_id]"]');
+            const currCitySelect = rows[i].querySelector('select[name*="[city_id]"]');
+            const priceInput = rows[i].querySelector('input[name*="[price_from_previous]"]');
+            if (!prevCitySelect || !currCitySelect || !priceInput) continue;
+
+            const fromId = prevCitySelect.value;
+            const toId = currCitySelect.value;
+            if (!fromId || !toId || fromId === toId) continue;
+
+            try {
+                const resp = await fetch(`/api/route?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`);
+                if (!resp.ok) continue;
+                const data = await resp.json();
+                if (data.suggestedPrice) {
+                    priceInput.value = data.suggestedPrice;
+                    priceInput.title = `Distance estimée : ${data.distanceKm} km (~${data.durationMinutes} min) — Prix suggéré OSRM : ${data.suggestedPrice} MAD`;
+                }
+            } catch (_) {
+                // Keep manual price if endpoint unreachable
+            }
+        }
+    }
+
+    container.addEventListener('change', (e) => {
+        if (e.target && e.target.matches('select[name*="[city_id]"]')) {
+            refreshSuggestedPrices();
+        }
+    });
+
     addBtn.addEventListener('click', () => {
         const index = container.querySelectorAll('.stop-row').length;
         const div = document.createElement('div');
@@ -142,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         div.querySelector('.remove-stop-btn').addEventListener('click', () => div.remove());
         container.appendChild(div);
+        refreshSuggestedPrices();
     });
 });
 </script>
