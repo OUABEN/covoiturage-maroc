@@ -1,30 +1,21 @@
 {#
-    Reusable City Image Component (with 2-size WebP srcset + dark gradient fallback)
-    Parameters:
-    - cityName: string
-    - width: int (default 400)
-    - height: int (default 260)
-    - class: string (default 'w-100 rounded-3 object-fit-cover')
+    Reusable City Image Component
+    Renders the real Gemini-generated WebP photo for Agadir (2 sizes: 800w / 1600w),
+    and a clean dark gradient fallback with the city name for cities without a photo yet (never a broken image).
 #}
 {% set normalized = cityName|lower|replace({'è': 'e', 'é': 'e', 'ê': 'e', ' ': '-'}) %}
-{% set knownSlugs = ['agadir', 'marrakech', 'essaouira', 'casablanca', 'rabat', 'fes', 'tiznit', 'taroudant', 'safi', 'el-jadida'] %}
-{% set matchedSlug = null %}
-{% for slug in knownSlugs %}
-    {% if slug in normalized %}
-        {% set matchedSlug = slug %}
-    {% endif %}
-{% endfor %}
+{% set hasRealPhoto = 'agadir' in normalized %}
 
 <div class="city-thumb-wrapper position-relative overflow-hidden rounded-3" style="background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); border: 1px solid var(--border);">
-    {% if matchedSlug %}
-        <img src="/images/cities/{{ matchedSlug }}.webp"
-             srcset="/images/cities/{{ matchedSlug }}-sm.webp 400w, /images/cities/{{ matchedSlug }}.webp 800w"
+    {% if hasRealPhoto %}
+        <img src="/images/cities/agadir.webp"
+             srcset="/images/cities/agadir-sm.webp 800w, /images/cities/agadir.webp 1600w"
              sizes="(max-width: 768px) 400px, 800px"
-             width="{{ width ?? 400 }}"
-             height="{{ height ?? 260 }}"
+             width="{{ width ?? 800 }}"
+             height="{{ height ?? 450 }}"
              loading="lazy"
              decoding="async"
-             alt="Illustration nocturne de {{ cityName }} au Maroc"
+             alt="Photographie de la plage et de la baie d'Agadir au Maroc à l'heure dorée"
              class="{{ class ?? 'w-100 object-fit-cover d-block' }}"
              style="height: {{ height ?? 140 }}px;"
              onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');">
@@ -33,9 +24,10 @@
             <span><i class="bi bi-geo-alt-fill me-1" style="color: var(--accent);" aria-hidden="true"></i>{{ cityName }}</span>
         </div>
     {% else %}
-        <div class="d-flex align-items-center justify-content-center p-3 text-center fw-bold"
-             style="height: {{ height ?? 140 }}px; background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
-            <span><i class="bi bi-geo-alt-fill me-1" style="color: var(--accent);" aria-hidden="true"></i>{{ cityName }}</span>
+        <div class="d-flex flex-column align-items-center justify-content-center p-3 text-center"
+             style="height: {{ height ?? 140 }}px; background: radial-gradient(circle at 80% 20%, rgba(198, 244, 50, 0.14), transparent 55%), linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
+            <span class="badge badge-lime mb-1"><i class="bi bi-geo-alt-fill me-1" aria-hidden="true"></i>Maroc</span>
+            <span class="fw-extrabold fs-6">{{ cityName }}</span>
         </div>
     {% endif %}
 </div>
