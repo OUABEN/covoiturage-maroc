@@ -129,4 +129,9 @@ class Review
 
         return $this;
     }
+
+    public function __toString(): string
+    {
+        return sprintf('Avis #%d (%d/5)', (int) $this->id, (int) $this->rating);
+    }
 }

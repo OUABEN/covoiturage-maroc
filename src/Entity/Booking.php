@@ -240,5 +240,16 @@ class Booking
     {
         return $this->reviews;
     }
+
+    public function __toString(): string
+    {
+        return sprintf(
+            'Réservation #%d (%s : %s -> %s)',
+            (int) $this->id,
+            (string) $this->passenger?->getFullName(),
+            (string) $this->fromStop?->getCity()?->getName(),
+            (string) $this->toStop?->getCity()?->getName()
+        );
+    }
 }
 

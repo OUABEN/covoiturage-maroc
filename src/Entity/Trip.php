@@ -180,5 +180,16 @@ class Trip
     {
         return $this->bookings;
     }
+
+    public function __toString(): string
+    {
+        $first = $this->stops->first();
+        $last = $this->stops->last();
+        if ($first instanceof TripStop && $last instanceof TripStop) {
+            return sprintf('Trajet #%d (%s -> %s)', (int) $this->id, (string) $first->getCity()?->getName(), (string) $last->getCity()?->getName());
+        }
+
+        return sprintf('Trajet #%d', (int) $this->id);
+    }
 }
 

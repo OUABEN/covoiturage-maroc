@@ -271,4 +271,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         return $this->receivedReviews;
     }
+
+    public function __toString(): string
+    {
+        return sprintf('%s (%s)', $this->getFullName(), (string) $this->email);
+    }
 }

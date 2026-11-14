@@ -1,0 +1,48 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}AtlasCovoit Maroc — Back-office d'administration{% endblock %}
+
+{% block main %}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3">
+            <div class="text-muted small text-uppercase fw-bold">Villes référencées</div>
+            <div class="fs-2 fw-bold text-success">{{ citiesCount }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3">
+            <div class="text-muted small text-uppercase fw-bold">Utilisateurs inscrits</div>
+            <div class="fs-2 fw-bold text-primary">{{ usersCount }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3">
+            <div class="text-muted small text-uppercase fw-bold">Véhicules enregistrés</div>
+            <div class="fs-2 fw-bold text-secondary">{{ vehiclesCount }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3">
+            <div class="text-muted small text-uppercase fw-bold">Trajets multi-étapes</div>
+            <div class="fs-2 fw-bold text-info">{{ tripsCount }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3">
+            <div class="text-muted small text-uppercase fw-bold">Réservations (lecture seule)</div>
+            <div class="fs-2 fw-bold text-warning">{{ bookingsCount }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3">
+            <div class="text-muted small text-uppercase fw-bold">Avis publiés</div>
+            <div class="fs-2 fw-bold text-danger">{{ reviewsCount }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <strong>Règle d'intégrité métier :</strong> La création et la modification directe d'entités <code>Booking</code> depuis le back-office sont désactivées (mode lecture seule). Toute réservation doit obligatoirement passer par <code>BookingService::book()</code> afin de garantir le verrouillage pessimiste (<code>SELECT ... FOR UPDATE</code>) et le respect de la capacité par segment.
+</div>
+{% endblock %}

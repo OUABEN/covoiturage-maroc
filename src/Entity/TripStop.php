@@ -159,5 +159,10 @@ class TripStop
 
         return $this;
     }
+
+    public function __toString(): string
+    {
+        return sprintf('#%d %s', (int) $this->stopOrder + 1, (string) $this->city?->getName());
+    }
 }
 

@@ -107,4 +107,9 @@ class Vehicle
 
         return $this;
     }
+
+    public function __toString(): string
+    {
+        return sprintf('%s %s (%s, %d places)', (string) $this->brand, (string) $this->model, (string) $this->color, (int) $this->seats);
+    }
 }
