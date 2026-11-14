@@ -184,21 +184,28 @@ class PassengerSpaceControllerTest extends WebTestCase
         self::assertSame('100.00', $this->em->find(Booking::class, $booking50->getId())?->getRefundAmount());
         self::assertSame('0.00', $this->em->find(Booking::class, $booking0->getId())?->getRefundAmount());
 
-        // 3a. Avis refusé avant la fin du trajet (trajet PUBLISHED)
-        /** @var \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrfManager */
-        $csrfManager = static::getContainer()->get('security.csrf.token_manager');
-        $activeReviewToken = $csrfManager->getToken('review_booking_'.$bookingActive->getId())->getValue();
-        $this->client->request('POST', sprintf('/mes-reservations/%d/avis', $bookingActive->getId()), [
-            '_token' => $activeReviewToken,
+        // 3a. Avis refusé avant la fin du trajet (trajet repassé en PUBLISHED au moment du POST)
+        $crawler = $this->client->request('GET', '/mes-reservations');
+        $reviewFormPreCompletion = $crawler->selectButton('Envoyer l\'avis')->form([
             'rating' => '5',
             'comment' => 'Tentative avant fin du trajet',
         ]);
+
+        $tripToRevert = $this->em->find(Trip::class, $bookingCompleted->getTrip()->getId());
+        $tripToRevert?->setStatus(TripStatus::PUBLISHED);
+        $this->em->flush();
+
+        $this->client->submit($reviewFormPreCompletion);
         self::assertResponseRedirects('/mes-reservations');
         $this->client->followRedirect();
         self::assertSelectorExists('.alert-danger');
-        self::assertSame(0, $this->em->getRepository(Review::class)->count(['booking' => $bookingActive->getId()]));
+        self::assertSame(0, $this->em->getRepository(Review::class)->count(['booking' => $bookingCompleted->getId()]));
 
         // 3b. Avis accepté après la fin du trajet (trajet COMPLETED)
+        $tripToComplete = $this->em->find(Trip::class, $bookingCompleted->getTrip()->getId());
+        $tripToComplete?->setStatus(TripStatus::COMPLETED);
+        $this->em->flush();
+
         $crawler = $this->client->request('GET', '/mes-reservations');
         $reviewFormCompleted = $crawler->selectButton('Envoyer l\'avis')->form([
             'rating' => '5',
