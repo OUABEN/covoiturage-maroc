@@ -3,69 +3,125 @@
 {% block title %}Connexion — AtlasCovoit Maroc{% endblock %}
 
 {% block body %}
-<div class="row justify-content-center py-4">
-    <div class="col-md-6 col-lg-5">
-        <div class="card shadow-sm border-0">
-            <div class="card-body p-4">
-                <h1 class="h3 fw-bold mb-2 text-center">Connexion</h1>
-                <p class="text-muted text-center small mb-4">
-                    Accédez à votre espace passager et conducteur sur AtlasCovoit Maroc.
-                </p>
+<div class="row justify-content-center py-3 py-lg-4">
+    <div class="col-xl-10">
+        <div class="auth-split-card">
+            <div class="row g-0">
+                {# Left Dark Visual Showcase Panel #}
+                <div class="col-lg-5 auth-visual-panel">
+                    <div class="position-relative z-1">
+                        <span class="badge badge-lime mb-3">
+                            <i class="bi bi-compass-fill"></i>AtlasCovoit Maroc
+                        </span>
+                        <h2 class="h3 fw-bold text-white mb-2">
+                            Voyagez d'étape en étape en toute <span class="text-highlight-lime">confiance</span>.
+                        </h2>
+                        <p class="small mb-4" style="color: #A1A1AA;">
+                            Un seul compte unifié pour réserver vos segments passager et publier vos itinéraires conducteur à travers le Souss-Massa, Marrakech et l'Atlantique.
+                        </p>
 
-                {% if error %}
-                    <div class="alert alert-danger" role="alert">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                        Identifiants invalides. Veuillez vérifier votre e-mail et votre mot de passe.
-                    </div>
-                {% endif %}
-
-                <form method="post" action="{{ path('app_login') }}">
-                    <div class="mb-3">
-                        <label for="username" class="form-label fw-semibold">Adresse e-mail</label>
-                        <input
-                            type="email"
-                            value="{{ last_username }}"
-                            name="_username"
-                            id="username"
-                            class="form-control"
-                            autocomplete="email"
-                            placeholder="youssef.benali@covoiturage.ma"
-                            required
-                            autofocus
-                        >
+                        <div class="mb-4">
+                            {{ include('components/city_image.html.twig', {
+                                cityName: 'Agadir',
+                                height: 160
+                            }) }}
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="password" class="form-label fw-semibold">Mot de passe</label>
-                        <input
-                            type="password"
-                            name="_password"
-                            id="password"
-                            class="form-control"
-                            autocomplete="current-password"
-                            required
-                        >
+                    <div class="position-relative z-1 d-grid gap-2">
+                        <div class="p-3 rounded-4 border" style="background-color: rgba(20, 20, 22, 0.85); border-color: #2A2A2E !important;">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="badge badge-lime">100 %</span>
+                                <strong class="small text-white">Remboursement automatique</strong>
+                            </div>
+                            <div class="small" style="color: #A1A1AA;">
+                                Calculé selon le préavis (&gt;24h, 2h–24h) ou en cas de décalage horaire &gt; 30 min.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Right Form Panel #}
+                <div class="col-lg-7 p-4 p-md-5 d-flex flex-column justify-content-center">
+                    <div class="mb-4">
+                        <h1 class="h3 fw-bold mb-1">Connexion</h1>
+                        <p class="text-muted small mb-0">
+                            Accédez à votre espace passager et conducteur sur AtlasCovoit Maroc.
+                        </p>
                     </div>
 
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="_remember_me" id="remember_me">
-                        <label class="form-check-label small" for="remember_me">
-                            Se souvenir de moi
-                        </label>
-                    </div>
+                    {% if error %}
+                        <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                            <div>
+                                Identifiants invalides. Veuillez vérifier votre adresse e-mail et votre mot de passe.
+                            </div>
+                        </div>
+                    {% endif %}
 
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+                    <form method="post" action="{{ path('app_login') }}">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Adresse e-mail</label>
+                            <div class="input-group">
+                                <span class="input-group-text border-end-0" style="background-color: var(--surface-2); border-color: var(--border); color: var(--muted);">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+                                <input
+                                    type="email"
+                                    value="{{ last_username }}"
+                                    name="_username"
+                                    id="username"
+                                    class="form-control"
+                                    autocomplete="email"
+                                    placeholder="youssef.benali@covoiturage.ma"
+                                    required
+                                    autofocus
+                                >
+                            </div>
+                        </div>
 
-                    <button class="btn btn-brand w-100 py-2 fw-semibold" type="submit">
-                        <i class="bi bi-box-arrow-in-right me-1"></i>Se connecter
-                    </button>
-                </form>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Mot de passe</label>
+                            <div class="input-group">
+                                <span class="input-group-text border-end-0" style="background-color: var(--surface-2); border-color: var(--border); color: var(--muted);">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                <input
+                                    type="password"
+                                    name="_password"
+                                    id="password"
+                                    class="form-control"
+                                    autocomplete="current-password"
+                                    placeholder="••••••••"
+                                    required
+                                >
+                            </div>
+                        </div>
 
-                <hr class="my-4">
-                <p class="text-center small mb-0">
-                    Pas encore de compte ?
-                    <a href="{{ path('app_register') }}" class="fw-semibold text-decoration-none">Créer un compte</a>
-                </p>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="_remember_me" id="remember_me">
+                                <label class="form-check-label small" for="remember_me">
+                                    Se souvenir de moi (7 jours)
+                                </label>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+                        <button class="btn btn-lime w-100 py-2 fw-bold" type="submit">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Se connecter
+                        </button>
+                    </form>
+
+                    <hr class="my-4">
+                    <p class="text-center small mb-0">
+                        Pas encore de compte ?
+                        <a href="{{ path('app_register') }}" class="fw-bold text-decoration-none ms-1">
+                            Créer un compte gratuitement <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </p>
+                </div>
             </div>
         </div>
     </div>
