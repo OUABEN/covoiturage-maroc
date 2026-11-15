@@ -1358,3 +1358,21 @@ html.js-motion .rating-bars:not(.is-revealed) .rating-bar__fill {
         animation: none !important;
     }
 }
+
+/* --------------------------------------------------------------------------
+   Home map search
+   -------------------------------------------------------------------------- */
+.home-map-city-divicon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.city-marker-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 18px rgba(198, 244, 50, 0.45) !important;
+}
+
+.city-marker-btn:focus-visible {
+    outline: 3px solid #FFFFFF !important;
+    outline-offset: 2px;
+}

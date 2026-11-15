@@ -121,5 +121,18 @@ class HomeControllerTest extends WebTestCase
         self::assertStringContainsString('À partir de', $popularCards->first()->html());
         self::assertStringContainsString('120.00 MAD', $popularCards->first()->html());
         self::assertStringContainsString('2 étapes', $popularCards->first()->html());
+
+        // Leaflet assets loaded on homepage
+        self::assertSelectorExists('link[href*="leaflet"]');
+        self::assertSelectorExists('script[src*="leaflet"]');
+
+        // Interactive map search integration and accessible tabs
+        self::assertSelectorExists('[data-controller~="home-map"]');
+        self::assertSelectorExists('#tab-search-form[role="tab"]');
+        self::assertSelectorExists('#tab-search-map[role="tab"]');
+        self::assertSelectorExists('select[data-home-map-target="keyboardFrom"]');
+        self::assertSelectorExists('select[data-home-map-target="keyboardTo"]');
+        self::assertSelectorExists('button[data-home-map-target="swapBtn"]');
+        self::assertSelectorExists('button[data-home-map-target="resetBtn"]');
     }
 }
