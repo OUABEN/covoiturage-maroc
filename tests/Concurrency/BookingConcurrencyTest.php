@@ -147,5 +147,128 @@ class BookingConcurrencyTest extends KernelTestCase
             $marrakech = $this->em->find(City::class, $marrakech->getId());
         }
     }
+
+    public function testThreeParallelProcessesCompetingForTwoSeatsExactTwoSucceed(): void
+    {
+        $driver = (new User())
+            ->setEmail('driver.conc3@test.ma')
+            ->setFirstName('Karim')
+            ->setLastName('El Amrani')
+            ->setPhone('+212600000010')
+            ->setPassword('hashed');
+        $this->em->persist($driver);
+
+        $passengerA = (new User())
+            ->setEmail('passA3.conc@test.ma')
+            ->setFirstName('Mehdi')
+            ->setLastName('Tazi')
+            ->setPhone('+212600000011')
+            ->setPassword('hashed');
+        $this->em->persist($passengerA);
+
+        $passengerB = (new User())
+            ->setEmail('passB3.conc@test.ma')
+            ->setFirstName('Nadia')
+            ->setLastName('Berrada')
+            ->setPhone('+212600000012')
+            ->setPassword('hashed');
+        $this->em->persist($passengerB);
+
+        $passengerC = (new User())
+            ->setEmail('passC3.conc@test.ma')
+            ->setFirstName('Samir')
+            ->setLastName('Fassi')
+            ->setPhone('+212600000013')
+            ->setPassword('hashed');
+        $this->em->persist($passengerC);
+
+        $vehicle = (new Vehicle())
+            ->setOwner($driver)
+            ->setBrand('Peugeot')
+            ->setModel('208')
+            ->setColor('Bleu')
+            ->setSeats(4);
+        $this->em->persist($vehicle);
+
+        $agadir = (new City())->setName('Agadir')->setLatitude('30.427755')->setLongitude('-9.598107');
+        $marrakech = (new City())->setName('Marrakech')->setLatitude('31.629472')->setLongitude('-7.981084');
+        $this->em->persist($agadir);
+        $this->em->persist($marrakech);
+        $this->em->flush();
+
+        $workerScript = __DIR__.'/worker_book.php';
+
+        for ($iteration = 1; $iteration <= 5; ++$iteration) {
+            $depTime = new \DateTimeImmutable('+3 days 10:00');
+            $arrTime = new \DateTimeImmutable('+3 days 13:00');
+
+            $trip = (new Trip())
+                ->setDriver($driver)
+                ->setVehicle($vehicle)
+                ->setSeatsTotal(2) // Exactement 2 places pour 3 candidats
+                ->setStatus(TripStatus::PUBLISHED);
+
+            $stop0 = (new TripStop())
+                ->setCity($agadir)
+                ->setStopOrder(0)
+                ->setDepartureTime($depTime)
+                ->setPriceFromPrevious('0.00');
+
+            $stop1 = (new TripStop())
+                ->setCity($marrakech)
+                ->setStopOrder(1)
+                ->setArrivalTime($arrTime)
+                ->setPriceFromPrevious('130.00');
+
+            $trip->addStop($stop0)->addStop($stop1);
+            $this->em->persist($stop0);
+            $this->em->persist($stop1);
+            $this->em->persist($trip);
+            $this->em->flush();
+
+            $tripId = (string) $trip->getId();
+            $fromId = (string) $stop0->getId();
+            $toId = (string) $stop1->getId();
+
+            $p1 = new Process([PHP_BINARY, $workerScript, $tripId, (string) $passengerA->getId(), $fromId, $toId]);
+            $p2 = new Process([PHP_BINARY, $workerScript, $tripId, (string) $passengerB->getId(), $fromId, $toId]);
+            $p3 = new Process([PHP_BINARY, $workerScript, $tripId, (string) $passengerC->getId(), $fromId, $toId]);
+
+            $p1->start();
+            $p2->start();
+            $p3->start();
+
+            $p1->wait();
+            $p2->wait();
+            $p3->wait();
+
+            self::assertTrue($p1->isSuccessful(), sprintf('Itération %d P1: %s', $iteration, $p1->getErrorOutput()));
+            self::assertTrue($p2->isSuccessful(), sprintf('Itération %d P2: %s', $iteration, $p2->getErrorOutput()));
+            self::assertTrue($p3->isSuccessful(), sprintf('Itération %d P3: %s', $iteration, $p3->getErrorOutput()));
+
+            $outputs = [$p1->getOutput(), $p2->getOutput(), $p3->getOutput()];
+
+            $bookedCount = count(array_filter($outputs, static fn (string $out): bool => str_starts_with($out, 'BOOKED:')));
+            $rejectedCount = count(array_filter($outputs, static fn (string $out): bool => str_starts_with($out, 'NOT_ENOUGH_SEATS:')));
+
+            self::assertSame(2, $bookedCount, sprintf('Itération %d : exactement 2 réservations doivent réussir (sorties: %s)', $iteration, implode(' | ', $outputs)));
+            self::assertSame(1, $rejectedCount, sprintf('Itération %d : exactement 1 réservation doit échouer par NotEnoughSeatsException (sorties: %s)', $iteration, implode(' | ', $outputs)));
+
+            $this->em->clear();
+            $confirmedInDb = $this->em->getRepository(Booking::class)->count([
+                'trip' => $trip->getId(),
+                'status' => BookingStatus::CONFIRMED,
+            ]);
+            self::assertSame(2, $confirmedInDb, sprintf('Itération %d : la base doit contenir exactement 2 réservations CONFIRMED.', $iteration));
+
+            $driver = $this->em->find(User::class, $driver->getId());
+            $passengerA = $this->em->find(User::class, $passengerA->getId());
+            $passengerB = $this->em->find(User::class, $passengerB->getId());
+            $passengerC = $this->em->find(User::class, $passengerC->getId());
+            $vehicle = $this->em->find(Vehicle::class, $vehicle->getId());
+            $agadir = $this->em->find(City::class, $agadir->getId());
+            $marrakech = $this->em->find(City::class, $marrakech->getId());
+        }
+    }
 }
 

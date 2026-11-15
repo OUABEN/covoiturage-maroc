@@ -54,19 +54,20 @@ class BookingServiceTest extends KernelTestCase
         TripStatus $status = TripStatus::PUBLISHED,
         string $departureOffset = '+2 days',
     ): array {
+        $suffix = bin2hex(random_bytes(4));
         $driver = (new User())
-            ->setEmail('driver@covoiturage.ma')
+            ->setEmail(sprintf('driver_%s@covoiturage.ma', $suffix))
             ->setFirstName('Youssef')
             ->setLastName('Benali')
-            ->setPhone('+212600000001')
+            ->setPhone('+2126' . substr(str_shuffle('01234567890123456789'), 0, 8))
             ->setPassword('hashed');
         $this->em->persist($driver);
 
         $passenger = (new User())
-            ->setEmail('passenger@covoiturage.ma')
+            ->setEmail(sprintf('passenger_%s@covoiturage.ma', $suffix))
             ->setFirstName('Mehdi')
             ->setLastName('Tazi')
-            ->setPhone('+212600000002')
+            ->setPhone('+2126' . substr(str_shuffle('01234567890123456789'), 0, 8))
             ->setPassword('hashed');
         $this->em->persist($passenger);
 
@@ -181,5 +182,42 @@ class BookingServiceTest extends KernelTestCase
 
         $this->expectException(InvalidBookingException::class);
         $this->bookingService->book($trip, $passenger, $stops[0], $stops[1], 1);
+    }
+
+    public function testBookRejectsZeroSeats(): void
+    {
+        [$trip, $stops, , $passenger] = $this->createFixtureTrip(3);
+
+        $this->expectException(InvalidBookingException::class);
+        $this->expectExceptionMessage('Le nombre de places réservées doit être supérieur ou égal à 1.');
+        $this->bookingService->book($trip, $passenger, $stops[0], $stops[1], 0);
+    }
+
+    public function testBookRejectsNegativeSeats(): void
+    {
+        [$trip, $stops, , $passenger] = $this->createFixtureTrip(3);
+
+        $this->expectException(InvalidBookingException::class);
+        $this->expectExceptionMessage('Le nombre de places réservées doit être supérieur ou égal à 1.');
+        $this->bookingService->book($trip, $passenger, $stops[0], $stops[1], -2);
+    }
+
+    public function testBookRejectsSameDepartureAndArrivalStop(): void
+    {
+        [$trip, $stops, , $passenger] = $this->createFixtureTrip(3);
+
+        $this->expectException(InvalidBookingException::class);
+        $this->expectExceptionMessage('L\'ordre de l\'arrêt de départ doit être strictement inférieur à celui de l\'arrêt d\'arrivée.');
+        $this->bookingService->book($trip, $passenger, $stops[0], $stops[0], 1);
+    }
+
+    public function testBookRejectsStopsFromAnotherTrip(): void
+    {
+        [$trip1, $stops1, , $passenger] = $this->createFixtureTrip(3);
+        [$trip2, $stops2] = $this->createFixtureTrip(3);
+
+        $this->expectException(InvalidBookingException::class);
+        $this->expectExceptionMessage('Les arrêts de départ et d\'arrivée doivent appartenir au trajet réservé.');
+        $this->bookingService->book($trip1, $passenger, $stops1[0], $stops2[1], 1);
     }
 }
