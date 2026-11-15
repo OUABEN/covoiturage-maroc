@@ -1,19 +1,57 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Confirmer l'annulation — AtlasCovoit Maroc{% endblock %}
+{% block title %}Confirmer l'annulation #{{ booking.id }} — AtlasCovoit Maroc{% endblock %}
 
 {% block body %}
-<div class="row justify-content-center">
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-body p-4">
-                <h1 class="h4 fw-bold mb-3">Confirmer l'annulation de la réservation #{{ booking.id }}</h1>
-                <p class="text-muted small mb-3">
+<div class="row justify-content-center py-3">
+    <div class="col-lg-7 col-xl-6">
+        <div class="card glow-border">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge badge-danger-soft">
+                        <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Calcul de remboursement avant confirmation
+                    </span>
+                    <span class="badge badge-surface">Réservation #{{ booking.id }}</span>
+                </div>
+
+                <h1 class="h3 fw-extrabold mb-2">
+                    Confirmer l'annulation de la réservation #{{ booking.id }}
+                </h1>
+                <p class="text-muted small mb-4">
                     Portion : <strong class="text-white">{{ booking.fromStop.city.name }} &rarr; {{ booking.toStop.city.name }}</strong>
                     &bull; Départ prévu le {{ booking.fromStop.departureTime|date('d/m/Y à H:i') }}
                 </p>
 
-                <div class="p-3 rounded border mb-4" style="background-color: var(--surface-2);">
+                {# Animated Circular Ring Gauge #}
+                <div class="ring-gauge mb-4" style="--p: {{ preview.percentage }};">
+                    <svg viewBox="0 0 36 36" aria-hidden="true">
+                        <circle class="ring-gauge__track" cx="18" cy="18" r="15.915" pathLength="100"></circle>
+                        <circle class="ring-gauge__value" cx="18" cy="18" r="15.915" pathLength="100"></circle>
+                    </svg>
+                    <div class="ring-gauge__label">
+                        <div class="ring-gauge__pct">{{ preview.percentage }}%</div>
+                        <div class="small text-muted fw-bold">{{ preview.amount }} MAD</div>
+                    </div>
+                </div>
+
+                {# Visual 3-Tier Policy Track #}
+                <div class="tier-track mb-4" aria-label="Paliers de remboursement">
+                    <div class="tier {{ preview.percentage == 100 ? 'is-active' : '' }}">
+                        <div class="tier__pct">100 %</div>
+                        <div class="tier__when">&gt; 24h ou décalage &gt; 30 min</div>
+                    </div>
+                    <div class="tier {{ preview.percentage == 50 ? 'is-active' : '' }}">
+                        <div class="tier__pct">50 %</div>
+                        <div class="tier__when">Entre 2h et 24h</div>
+                    </div>
+                    <div class="tier {{ preview.percentage == 0 ? 'is-active' : '' }}">
+                        <div class="tier__pct">0 %</div>
+                        <div class="tier__when">&lt; 2h du départ</div>
+                    </div>
+                </div>
+
+                {# Financial Breakdown Box #}
+                <div class="p-3 rounded-3 border mb-4" style="background-color: var(--surface-2);">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="small text-muted">Prix payé ({{ booking.seats }} place(s))</span>
                         <strong class="text-white">{{ booking.price }} MAD</strong>
@@ -23,21 +61,21 @@
                         <span class="badge badge-lime">{{ preview.percentage }} %</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                        <span class="fw-bold">Remboursement prévu</span>
-                        <span class="fs-5 fw-extrabold" style="color: var(--accent);">
+                        <span class="fw-extrabold">Remboursement prévu</span>
+                        <span class="fs-5 fw-extrabold text-highlight-lime">
                             {{ preview.percentage }} % ({{ preview.amount }} MAD)
                         </span>
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-between gap-2">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <a href="{{ path('app_my_bookings') }}" class="btn btn-outline-light">
-                        Retour à mes réservations
+                        <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Retour à mes réservations
                     </a>
                     <form method="post" action="{{ path('app_booking_cancel', {id: booking.id}) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('cancel_booking_' ~ booking.id) }}">
                         <button type="submit" class="btn btn-danger">
-                            Confirmer l'annulation ({{ preview.percentage }} % : {{ preview.amount }} MAD)
+                            <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Confirmer l'annulation ({{ preview.percentage }} % : {{ preview.amount }} MAD)
                         </button>
                     </form>
                 </div>
