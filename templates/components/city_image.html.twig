@@ -1,31 +1,53 @@
 {#
     Reusable City Image Component
-    Renders the real Gemini-generated WebP photo for Agadir (2 sizes: 800w / 1600w),
-    and a clean dark gradient fallback with the city name for cities without a photo yet (never a broken image).
+    Local WebP photos from public/images/cities/ (2 sizes: <slug>-sm.webp 800w / <slug>.webp 1600w).
+    Cities without a photo (or a missing file, via onerror) get a dark gradient fallback with the city name:
+    never a broken image, never a remote image.
+    Params: cityName (required), width, height, class.
 #}
-{% set normalized = cityName|lower|replace({'è': 'e', 'é': 'e', 'ê': 'e', ' ': '-'}) %}
-{% set hasRealPhoto = 'agadir' in normalized %}
+{% set cityPhotos = {
+    'agadir': 'agadir',
+    'casablanca': 'casablanca',
+    'marrakech': 'marrakech',
+    'rabat': 'rabat',
+    'fès': 'fes',
+    'fes': 'fes',
+    'essaouira': 'essaouira',
+    'safi': 'safi',
+} %}
+{% set cityAlts = {
+    'agadir': "Plage et baie d'Agadir au coucher du soleil",
+    'casablanca': 'Mosquée Hassan II de Casablanca au crépuscule, face à l’océan',
+    'marrakech': 'Minaret de la Koutoubia à Marrakech avec l’Atlas enneigé en arrière-plan',
+    'rabat': 'Ruelle bleue et blanche de la kasbah des Oudayas à Rabat',
+    'fes': 'Vue panoramique sur la médina de Fès au coucher du soleil',
+    'essaouira': 'Remparts de la Skala et barques bleues du port d’Essaouira',
+    'safi': 'Forteresse côtière sur la falaise de Safi battue par les vagues',
+} %}
+{% set slug = cityPhotos[cityName|default('')|lower|trim] ?? null %}
+{% set imgHeight = height ?? 140 %}
 
 <div class="city-thumb-wrapper position-relative overflow-hidden rounded-3" style="background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); border: 1px solid var(--border);">
-    {% if hasRealPhoto %}
-        <img src="/images/cities/agadir.webp"
-             srcset="/images/cities/agadir-sm.webp 800w, /images/cities/agadir.webp 1600w"
-             sizes="(max-width: 768px) 400px, 800px"
+    {% if slug %}
+        <img src="/images/cities/{{ slug }}-sm.webp"
+             srcset="/images/cities/{{ slug }}-sm.webp 800w, /images/cities/{{ slug }}.webp 1600w"
+             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
              width="{{ width ?? 800 }}"
-             height="{{ height ?? 450 }}"
+             height="{{ imgHeight }}"
              loading="lazy"
              decoding="async"
-             alt="Photographie de la plage et de la baie d'Agadir au Maroc à l'heure dorée"
+             alt="{{ cityAlts[slug] ?? ('Photographie de ' ~ cityName ~ ', Maroc') }}"
              class="{{ class ?? 'w-100 object-fit-cover d-block' }}"
-             style="height: {{ height ?? 140 }}px;"
-             onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');">
-        <div class="d-none align-items-center justify-content-center p-3 text-center fw-bold"
-             style="height: {{ height ?? 140 }}px; background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
-            <span><i class="bi bi-geo-alt-fill me-1" style="color: var(--accent);" aria-hidden="true"></i>{{ cityName }}</span>
+             style="height: {{ imgHeight }}px;"
+             onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none'); this.nextElementSibling.classList.add('d-flex');">
+        <div class="d-none flex-column align-items-center justify-content-center p-3 text-center"
+             style="height: {{ imgHeight }}px; background: radial-gradient(circle at 80% 20%, rgba(198, 244, 50, 0.14), transparent 55%), linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
+            <span class="badge badge-lime mb-1"><i class="bi bi-geo-alt-fill me-1" aria-hidden="true"></i>Maroc</span>
+            <span class="fw-extrabold fs-6">{{ cityName }}</span>
         </div>
     {% else %}
         <div class="d-flex flex-column align-items-center justify-content-center p-3 text-center"
-             style="height: {{ height ?? 140 }}px; background: radial-gradient(circle at 80% 20%, rgba(198, 244, 50, 0.14), transparent 55%), linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
+             style="height: {{ imgHeight }}px; background: radial-gradient(circle at 80% 20%, rgba(198, 244, 50, 0.14), transparent 55%), linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
             <span class="badge badge-lime mb-1"><i class="bi bi-geo-alt-fill me-1" aria-hidden="true"></i>Maroc</span>
             <span class="fw-extrabold fs-6">{{ cityName }}</span>
         </div>

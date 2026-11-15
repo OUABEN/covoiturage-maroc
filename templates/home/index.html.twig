@@ -80,16 +80,16 @@
                 <div class="hero-3d-scene">
                     <div class="hero-3d-stage" data-parallax-3d-target="stage">
                         <div class="hero-3d-card-main">
-                            <img src="/images/cities/agadir.webp"
-                                 srcset="/images/cities/agadir-sm.webp 800w, /images/cities/agadir.webp 1600w"
-                                 sizes="(max-width: 992px) 400px, 520px"
+                            <img src="/images/cars/car.webp"
+                                 srcset="/images/cars/car-sm.webp 800w, /images/cars/car.webp 1600w"
+                                 sizes="(max-width: 992px) 100vw, 520px"
                                  width="1600"
-                                 height="900"
+                                 height="679"
                                  fetchpriority="high"
                                  decoding="async"
-                                 alt="Photographie de la côte atlantique d'Agadir au Maroc à l'heure dorée"
+                                 alt="Voiture de covoiturage SUV blanche sur une route côtière marocaine au coucher du soleil"
                                  class="w-100 h-auto d-block"
-                                 onerror="this.style.display='none';">
+                                 onerror="this.onerror=null; this.removeAttribute('srcset'); this.src='/images/cities/agadir.webp';">
                         </div>
 
                         <div class="hero-floating-badge hero-floating-top d-none d-md-flex align-items-center gap-2"
@@ -202,14 +202,18 @@
             {# Onglet 2 : Recherche interactive par carte Leaflet + Panneau #}
             <div class="d-none" data-home-map-target="mapPane">
                 <div class="row g-4 align-items-stretch">
-                    {# Colonne gauche : Carte Leaflet #}
+                    {# Colonne gauche : Carte interactive basée sur carte-maroc.webp + marqueurs villes #}
                     <div class="col-lg-7">
-                        <div class="position-relative rounded-4 overflow-hidden border" style="border-color: var(--border) !important; background: var(--surface-2); min-height: 480px;">
+                        <div class="position-relative rounded-4 overflow-hidden border" style="border-color: var(--border) !important; background: #0B0B0C; min-height: 480px;">
                             <div data-home-map-target="canvas"
-                                 style="height: 480px; width: 100%; z-index: 1;"></div>
+                                 style="height: 480px; width: 100%; z-index: 1; background-color: #0B0B0C;"></div>
                             <div class="position-absolute top-0 start-0 m-3 px-3 py-1 rounded-pill small fw-semibold shadow-sm"
                                  style="background: rgba(11, 11, 12, 0.88); color: #fff; border: 1px solid var(--border); z-index: 500; pointer-events: none;">
                                 <span data-home-map-target="mapHint"><i class="bi bi-cursor-fill me-1 text-lime" aria-hidden="true"></i>Cliquez sur une ville de départ</span>
+                            </div>
+                            <div class="position-absolute bottom-0 end-0 m-2 px-2 py-1 rounded-pill small"
+                                 style="background: rgba(11, 11, 12, 0.78); color: rgba(255,255,255,0.72); border: 1px solid rgba(198, 244, 50, 0.22); font-size: 11px; z-index: 500; pointer-events: none;">
+                                <i class="bi bi-geo-alt-fill text-lime me-1" aria-hidden="true"></i>Carte du réseau AtlasCovoit Maroc
                             </div>
                         </div>
 
@@ -285,12 +289,38 @@
                                 </div>
                             </div>
 
+                            {# Aperçu visuel des villes sélectionnées (affiché dès qu'une ville est choisie) #}
+                            <div class="d-none mb-3" data-home-map-target="selectedCityPreview"></div>
+
                             {# Conteneur dynamique des résultats / états du panneau #}
                             <div class="flex-grow-1 overflow-auto" style="max-height: 380px;" data-home-map-target="resultsContainer">
-                                <div class="p-4 text-center text-muted">
-                                    <i class="bi bi-map fs-1 mb-2 d-block text-lime" aria-hidden="true"></i>
-                                    <div class="fw-bold mb-1">Sélectionnez votre itinéraire</div>
-                                    <div class="small">Cliquez sur une ville sur la carte (1er clic = départ, 2ème clic = arrivée) ou utilisez l'alternative clavier.</div>
+                                <div class="p-1">
+                                    <div class="text-center mb-3">
+                                        <div class="fw-bold small text-uppercase text-muted mb-1">Sélectionnez votre itinéraire</div>
+                                        <div class="small text-muted">Cliquez sur une ville sur la carte ou sur une vignette ci-dessous (1er clic = départ, 2ème = arrivée).</div>
+                                    </div>
+                                    <div class="row g-2">
+                                        {% for city in cities %}
+                                            <div class="col-6">
+                                                <button type="button"
+                                                        class="btn p-0 w-100 text-start border rounded-3 overflow-hidden position-relative card-interactive bg-transparent"
+                                                        style="border-color: var(--border) !important;"
+                                                        data-city-id="{{ city.id }}"
+                                                        data-action="click->home-map#selectCityCard"
+                                                        aria-label="Sélectionner {{ city.name }}">
+                                                    {% include 'components/city_image.html.twig' with {
+                                                        cityName: city.name,
+                                                        width: 300,
+                                                        height: 76
+                                                    } %}
+                                                    <div class="px-2 py-1 d-flex justify-content-between align-items-center" style="background: var(--surface);">
+                                                        <span class="small fw-bold text-truncate">{{ city.name }}</span>
+                                                        <i class="bi bi-plus-circle-fill text-lime small" aria-hidden="true"></i>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -238,7 +238,10 @@ html.js-motion main [data-reveal] {
         box-shadow 220ms ease;
 }
 
-html.js-motion main .card:not(.card .card):not(.is-revealed),
+/* Cards wrapped in a Stimulus [data-controller~="reveal"] element are animated by that
+   wrapper (assets/controllers/reveal_controller.js) and skipped by motion.js, so they must
+   not be hidden here, otherwise nothing ever adds .is-revealed and they stay invisible. */
+html.js-motion main .card:not(.card .card):not([data-controller~="reveal"] .card):not(.is-revealed),
 html.js-motion main [data-reveal]:not(.is-revealed) {
     opacity: 0;
     transform: translateY(22px) scale(0.985);
@@ -257,7 +260,7 @@ html.js-motion main [data-reveal="scale"]:not(.is-revealed) {
 }
 
 /* Failsafe: if the motion script never boots, show everything after 2.5s */
-html.js-motion:not(.motion-booted) main .card:not(.card .card),
+html.js-motion:not(.motion-booted) main .card:not(.card .card):not([data-controller~="reveal"] .card),
 html.js-motion:not(.motion-booted) main [data-reveal] {
     animation: reveal-failsafe 10ms 2.5s forwards;
 }

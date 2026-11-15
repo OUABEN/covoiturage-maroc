@@ -2,15 +2,9 @@ import { Controller } from '@hotwired/stimulus';
 
 /**
  * Stimulus controller: "home-map"
- * Manages the interactive Leaflet map search on the homepage.
- * - Tabs toggle (Formulaire | Carte)
- * - CartoDB Dark Matter / Positron tiles dynamically switching on theme:changed
- * - Lime #C6F432 city markers (>= 44px touch target)
- * - Click 1 = Departure, Click 2 = Arrival
- * - Straight lime line between selected cities
- * - Public API /api/map/trips integration with skeleton, empty, error states
- * - Keyboard accessible alternative selects
- * - Respect of prefers-reduced-motion
+ * Interactive Morocco network map built on local WebP image (carte-maroc.webp) via Leaflet CRS.Simple,
+ * with clickable lime #C6F432 city markers (>= 44px touch target), straight route line,
+ * city-photo selection cards in the side panel, /api/map/trips integration, and keyboard accessibility.
  */
 export default class extends Controller {
     static targets = [
@@ -27,6 +21,7 @@ export default class extends Controller {
         'resetBtn',
         'keyboardFrom',
         'keyboardTo',
+        'selectedCityPreview',
         'resultsContainer',
         'resultsCount',
     ];
@@ -36,9 +31,33 @@ export default class extends Controller {
         apiUrl: { type: String, default: '/api/map/trips' },
     };
 
-    static TILE_URLS = {
-        dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    // Dimensions of carte-maroc.webp coordinate space: width=1000, height=558
+    static MAP_WIDTH = 1000;
+    static MAP_HEIGHT = 558;
+
+    // Calibrated (x, y from top-left) on carte-maroc.webp matching Morocco's illuminated city nodes
+    static CITY_MAP_POINTS = {
+        rabat: { x: 351, y: 119 },
+        fes: { x: 407, y: 119 },
+        casablanca: { x: 327, y: 136 },
+        'el-jadida': { x: 302, y: 146 },
+        safi: { x: 284, y: 175 },
+        essaouira: { x: 268, y: 199 },
+        marrakech: { x: 318, y: 198 },
+        agadir: { x: 272, y: 240 },
+        taroudant: { x: 296, y: 238 },
+        tiznit: { x: 266, y: 263 },
+    };
+
+    // City slugs that have a local WebP photo in /images/cities/
+    static CITY_PHOTOS = {
+        agadir: { slug: 'agadir', alt: "Plage et baie d'Agadir au coucher du soleil" },
+        casablanca: { slug: 'casablanca', alt: 'Mosquée Hassan II de Casablanca au crépuscule' },
+        marrakech: { slug: 'marrakech', alt: 'Minaret de la Koutoubia à Marrakech' },
+        rabat: { slug: 'rabat', alt: 'Ruelle bleue et blanche de la kasbah des Oudayas à Rabat' },
+        fes: { slug: 'fes', alt: 'Vue panoramique sur la médina de Fès au coucher du soleil' },
+        essaouira: { slug: 'essaouira', alt: 'Remparts de la Skala et barques bleues du port d’Essaouira' },
+        safi: { slug: 'safi', alt: 'Forteresse côtière sur la falaise de Safi' },
     };
 
     connect() {
@@ -48,16 +67,7 @@ export default class extends Controller {
         this.polyline = null;
         this.mapInitialized = false;
 
-        this.handleThemeChanged = (event) => {
-            const theme = event.detail?.theme || document.documentElement.getAttribute('data-theme') || 'dark';
-            const nextUrl = this.constructor.TILE_URLS[theme] || this.constructor.TILE_URLS.dark;
-            if (this.tileLayer) {
-                this.tileLayer.setUrl(nextUrl);
-            }
-        };
-        window.addEventListener('theme:changed', this.handleThemeChanged);
-
-        // Pre-fill date input with today or +2 days if empty
+        // Pre-fill date input with today + 2 days if empty
         if (this.hasDateInputTarget && !this.dateInputTarget.value) {
             const defaultDate = new Date();
             defaultDate.setDate(defaultDate.getDate() + 2);
@@ -66,11 +76,113 @@ export default class extends Controller {
     }
 
     disconnect() {
-        window.removeEventListener('theme:changed', this.handleThemeChanged);
         if (this.map) {
             this.map.remove();
             this.map = null;
         }
+    }
+
+    normalizeCityKey(name) {
+        return String(name || '')
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, '-');
+    }
+
+    getCityMapLatLng(city) {
+        const key = this.normalizeCityKey(city.name);
+        const calibrated = this.constructor.CITY_MAP_POINTS[key];
+        let px;
+        let py;
+
+        if (calibrated) {
+            px = calibrated.x;
+            py = calibrated.y;
+        } else if (city.lat != null && city.lng != null) {
+            // Linear fallback derived from calibrated Moroccan cities on carte-maroc.webp
+            px = 345 + (Number(city.lng) + 7.0) * 30.6;
+            py = 119 + (34.02 - Number(city.lat)) * 33.1;
+        } else {
+            return null;
+        }
+
+        // CRS.Simple y-axis runs upward from bottom (0) to top (MAP_HEIGHT)
+        return [this.constructor.MAP_HEIGHT - py, px];
+    }
+
+    renderCityThumbHtml(city, height = 76) {
+        const key = this.normalizeCityKey(city.name);
+        const photo = this.constructor.CITY_PHOTOS[key];
+        if (photo) {
+            return `
+                <div class="city-thumb-wrapper position-relative overflow-hidden" style="background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); height: ${height}px;">
+                    <img src="/images/cities/${photo.slug}-sm.webp"
+                         srcset="/images/cities/${photo.slug}-sm.webp 800w, /images/cities/${photo.slug}.webp 1600w"
+                         sizes="220px"
+                         width="300"
+                         height="${height}"
+                         loading="lazy"
+                         decoding="async"
+                         alt="${photo.alt}"
+                         class="w-100 h-100 object-fit-cover d-block"
+                         onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none'); this.nextElementSibling.classList.add('d-flex');">
+                    <div class="d-none flex-column align-items-center justify-content-center h-100 p-2 text-center"
+                         style="background: radial-gradient(circle at 80% 20%, rgba(198, 244, 50, 0.14), transparent 55%), linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
+                        <span class="badge badge-lime mb-1" style="font-size: 10px;">Maroc</span>
+                        <span class="fw-bold small">${city.name}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="d-flex flex-column align-items-center justify-content-center p-2 text-center"
+                 style="height: ${height}px; background: radial-gradient(circle at 80% 20%, rgba(198, 244, 50, 0.14), transparent 55%), linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); color: #FFFFFF;">
+                <span class="badge badge-lime mb-1" style="font-size: 10px;"><i class="bi bi-geo-alt-fill me-1" aria-hidden="true"></i>Maroc</span>
+                <span class="fw-bold small">${city.name}</span>
+            </div>
+        `;
+    }
+
+    updateSelectedCityPreview() {
+        if (!this.hasSelectedCityPreviewTarget) {
+            return;
+        }
+
+        if (!this.selectedFrom && !this.selectedTo) {
+            this.selectedCityPreviewTarget.classList.add('d-none');
+            this.selectedCityPreviewTarget.innerHTML = '';
+            return;
+        }
+
+        const cards = [];
+        if (this.selectedFrom) {
+            cards.push(`
+                <div class="${this.selectedTo ? 'col-6' : 'col-12'}">
+                    <div class="rounded-3 overflow-hidden border position-relative" style="border-color: var(--border) !important;">
+                        ${this.renderCityThumbHtml(this.selectedFrom, 72)}
+                        <span class="position-absolute top-0 start-0 m-1 badge badge-lime" style="font-size: 10px;">Départ</span>
+                        <div class="px-2 py-1 small fw-bold text-truncate" style="background: var(--surface);">${this.selectedFrom.name}</div>
+                    </div>
+                </div>
+            `);
+        }
+        if (this.selectedTo) {
+            cards.push(`
+                <div class="col-6">
+                    <div class="rounded-3 overflow-hidden border position-relative" style="border-color: var(--border) !important;">
+                        ${this.renderCityThumbHtml(this.selectedTo, 72)}
+                        <span class="position-absolute top-0 start-0 m-1 badge bg-dark text-light border" style="font-size: 10px; border-color: var(--accent) !important;">Arrivée</span>
+                        <div class="px-2 py-1 small fw-bold text-truncate" style="background: var(--surface);">${this.selectedTo.name}</div>
+                    </div>
+                </div>
+            `);
+        }
+
+        this.selectedCityPreviewTarget.classList.remove('d-none');
+        this.selectedCityPreviewTarget.innerHTML = `<div class="row g-2">${cards.join('')}</div>`;
     }
 
     showFormTab() {
@@ -107,6 +219,7 @@ export default class extends Controller {
         } else if (this.map) {
             setTimeout(() => {
                 this.map.invalidateSize();
+                this.map.fitBounds([[170, 120], [535, 520]]);
             }, 100);
         }
     }
@@ -136,28 +249,31 @@ export default class extends Controller {
         }
 
         this.mapInitialized = true;
+        this.canvasTarget.style.backgroundColor = '#0B0B0C';
 
-        const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-        const initialTileUrl = this.constructor.TILE_URLS[currentTheme];
+        const imageBounds = [[0, 0], [this.constructor.MAP_HEIGHT, this.constructor.MAP_WIDTH]];
 
-        // Center Morocco [31.7917, -7.0926]
         this.map = L.map(this.canvasTarget, {
+            crs: L.CRS.Simple,
             scrollWheelZoom: false,
             zoomControl: true,
-            minZoom: 5,
-            maxZoom: 12,
+            attributionControl: false,
+            minZoom: -0.5,
+            maxZoom: 2.5,
+            zoomSnap: 0.25,
             maxBounds: [
-                [20.5, -18.0],
-                [36.5, -0.5],
+                [-40, -40],
+                [this.constructor.MAP_HEIGHT + 40, this.constructor.MAP_WIDTH + 40],
             ],
-            maxBoundsViscosity: 0.8,
-        }).setView([31.7917, -7.0926], 6);
+            maxBoundsViscosity: 0.85,
+        });
 
-        this.tileLayer = L.tileLayer(initialTileUrl, {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 19,
+        L.imageOverlay('/images/cities/carte-maroc.webp', imageBounds, {
+            alt: 'Carte du Maroc — réseau AtlasCovoit',
         }).addTo(this.map);
+
+        // Focus cleanly on the 10-city corridor while showing the glowing Morocco outline
+        this.map.fitBounds([[170, 120], [535, 520]]);
 
         this.renderCityMarkers();
     }
@@ -169,12 +285,13 @@ export default class extends Controller {
         }
 
         this.citiesValue.forEach((city) => {
-            if (city.lat == null || city.lng == null) {
+            const latLng = this.getCityMapLatLng(city);
+            if (!latLng) {
                 return;
             }
 
             const icon = this.createMarkerIcon(city, 'default');
-            const marker = L.marker([city.lat, city.lng], {
+            const marker = L.marker(latLng, {
                 icon,
                 title: city.name,
                 alt: `Ville : ${city.name}`,
@@ -182,7 +299,7 @@ export default class extends Controller {
             }).addTo(this.map);
 
             marker.on('click', () => this.handleCityClick(city));
-            this.markers.set(city.id, { marker, city });
+            this.markers.set(city.id, { marker, city, latLng });
         });
     }
 
@@ -192,21 +309,21 @@ export default class extends Controller {
         let extraStyle = '';
 
         if (state === 'from') {
-            badgeHtml = '<span class="marker-role-tag" style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #0B0B0C; color: #C6F432; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 9999px; border: 1px solid #C6F432; white-space: nowrap;">1. DÉPART</span>';
-            extraStyle = 'outline: 3px solid #FFFFFF; box-shadow: 0 0 16px rgba(198, 244, 50, 0.9); transform: scale(1.08);';
+            badgeHtml = '<span class="marker-role-tag" style="position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: #0B0B0C; color: #C6F432; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 9999px; border: 1px solid #C6F432; white-space: nowrap;">1. DÉPART</span>';
+            extraStyle = 'outline: 3px solid #FFFFFF; box-shadow: 0 0 16px rgba(198, 244, 50, 0.9); transform: scale(1.06);';
         } else if (state === 'to') {
-            badgeHtml = '<span class="marker-role-tag" style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #0B0B0C; color: #C6F432; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 9999px; border: 1px solid #C6F432; white-space: nowrap;">2. ARRIVÉE</span>';
-            extraStyle = 'outline: 3px solid #FFFFFF; box-shadow: 0 0 16px rgba(198, 244, 50, 0.9); transform: scale(1.08);';
+            badgeHtml = '<span class="marker-role-tag" style="position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: #0B0B0C; color: #C6F432; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 9999px; border: 1px solid #C6F432; white-space: nowrap;">2. ARRIVÉE</span>';
+            extraStyle = 'outline: 3px solid #FFFFFF; box-shadow: 0 0 16px rgba(198, 244, 50, 0.9); transform: scale(1.06);';
         }
 
         const html = `
-            <div style="position: relative; display: inline-block;">
+            <div style="position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px;">
                 ${badgeHtml}
                 <button type="button"
                         class="city-marker-btn"
                         aria-label="Sélectionner ville de ${city.name}"
-                        style="min-width: 44px; min-height: 44px; padding: 6px 12px; background-color: #C6F432; color: #0B0B0C; font-weight: 800; font-size: 13px; font-family: inherit; border: 2px solid #0B0B0C; border-radius: 9999px; box-shadow: 0 4px 14px rgba(0,0,0,0.35); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: transform 0.15s ease, box-shadow 0.15s ease; ${extraStyle}">
-                    <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #0B0B0C; display: inline-block;"></span>
+                        style="min-width: 44px; min-height: 44px; padding: 4px 10px; background-color: #C6F432; color: #0B0B0C; font-weight: 800; font-size: 11px; font-family: inherit; border: 2px solid #0B0B0C; border-radius: 9999px; box-shadow: 0 4px 14px rgba(0,0,0,0.45); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; transition: transform 0.15s ease, box-shadow 0.15s ease; ${extraStyle}">
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background-color: #0B0B0C; display: inline-block; flex-shrink: 0;"></span>
                     <span>${city.name}</span>
                 </button>
             </div>
@@ -216,8 +333,17 @@ export default class extends Controller {
             className: 'home-map-city-divicon',
             html,
             iconSize: null,
-            iconAnchor: [34, 22],
+            iconAnchor: [38, 22],
         });
+    }
+
+    selectCityCard(event) {
+        const id = parseInt(event.currentTarget.dataset.cityId || '', 10);
+        if (isNaN(id)) return;
+        const city = this.citiesValue.find((c) => c.id === id);
+        if (city) {
+            this.handleCityClick(city);
+        }
     }
 
     handleCityClick(city) {
@@ -225,14 +351,12 @@ export default class extends Controller {
             this.setFrom(city);
         } else if (!this.selectedTo) {
             if (this.selectedFrom.id === city.id) {
-                // Clicked departure again -> reset departure
                 this.resetSelection();
             } else {
                 this.setTo(city);
             }
         } else {
-            // Both already selected -> clicking a new city starts a new departure
-            this.resetSelection();
+            this.resetSelection(false);
             this.setFrom(city);
         }
     }
@@ -255,6 +379,7 @@ export default class extends Controller {
             this.mapHintTarget.innerHTML = `<i class="bi bi-geo-alt-fill me-1 text-lime" aria-hidden="true"></i>Départ : <strong>${city.name}</strong>. Cliquez maintenant sur votre ville d'arrivée.`;
         }
 
+        this.updateSelectedCityPreview();
         this.fetchTrips();
     }
 
@@ -280,6 +405,7 @@ export default class extends Controller {
             this.mapHintTarget.innerHTML = `<i class="bi bi-signpost-2-fill me-1 text-lime" aria-hidden="true"></i>Itinéraire : <strong>${this.selectedFrom.name} &rarr; ${city.name}</strong>`;
         }
 
+        this.updateSelectedCityPreview();
         this.drawRouteLine();
         this.fetchTrips();
     }
@@ -302,12 +428,15 @@ export default class extends Controller {
             this.polyline = null;
         }
 
-        const latLngs = [
-            [this.selectedFrom.lat, this.selectedFrom.lng],
-            [this.selectedTo.lat, this.selectedTo.lng],
-        ];
+        const fromItem = this.markers.get(this.selectedFrom.id);
+        const toItem = this.markers.get(this.selectedTo.id);
+        const fromLatLng = fromItem?.latLng || this.getCityMapLatLng(this.selectedFrom);
+        const toLatLng = toItem?.latLng || this.getCityMapLatLng(this.selectedTo);
+        if (!fromLatLng || !toLatLng) {
+            return;
+        }
 
-        this.polyline = L.polyline(latLngs, {
+        this.polyline = L.polyline([fromLatLng, toLatLng], {
             color: '#C6F432',
             weight: 4,
             dashArray: '8, 8',
@@ -316,8 +445,8 @@ export default class extends Controller {
 
         const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         this.map.fitBounds(this.polyline.getBounds(), {
-            padding: [45, 45],
-            maxZoom: 9,
+            padding: [65, 65],
+            maxZoom: 1.5,
             animate: !reducedMotion,
         });
     }
@@ -327,9 +456,8 @@ export default class extends Controller {
             return;
         }
 
-        const temp = this.selectedFrom;
         const newFrom = this.selectedTo;
-        const newTo = temp;
+        const newTo = this.selectedFrom;
 
         this.resetSelection(false);
         this.setFrom(newFrom);
@@ -370,11 +498,12 @@ export default class extends Controller {
                 this.mapHintTarget.innerHTML = `<i class="bi bi-cursor-fill me-1 text-lime" aria-hidden="true"></i>Cliquez sur une ville de départ`;
             }
             if (this.hasResultsCountTarget) this.resultsCountTarget.textContent = '';
+            this.updateSelectedCityPreview();
             this.showInitialState();
 
             if (this.map) {
                 const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                this.map.setView([31.7917, -7.0926], 6, { animate: !reducedMotion });
+                this.map.fitBounds([[170, 120], [535, 520]], { animate: !reducedMotion });
             }
         }
     }
@@ -394,7 +523,9 @@ export default class extends Controller {
                 if (this.hasToBadgeTarget) {
                     this.toBadgeTarget.textContent = 'Choisir arrivée';
                     this.toBadgeTarget.classList.add('text-muted');
+                    this.toBadgeTarget.classList.remove('badge-lime');
                 }
+                this.updateSelectedCityPreview();
             }
         }
     }
@@ -408,11 +539,13 @@ export default class extends Controller {
                 if (this.hasToBadgeTarget) {
                     this.toBadgeTarget.textContent = 'Choisir arrivée';
                     this.toBadgeTarget.classList.add('text-muted');
+                    this.toBadgeTarget.classList.remove('badge-lime');
                 }
                 if (this.polyline) {
                     this.polyline.remove();
                     this.polyline = null;
                 }
+                this.updateSelectedCityPreview();
                 this.fetchTrips();
             }
             return;
@@ -473,11 +606,31 @@ export default class extends Controller {
 
     showInitialState() {
         if (!this.hasResultsContainerTarget) return;
+        const cities = Array.isArray(this.citiesValue) ? this.citiesValue : [];
+        const cityCards = cities.map((city) => `
+            <div class="col-6">
+                <button type="button"
+                        class="btn p-0 w-100 text-start border rounded-3 overflow-hidden position-relative card-interactive bg-transparent"
+                        style="border-color: var(--border) !important;"
+                        data-city-id="${city.id}"
+                        data-action="click->home-map#selectCityCard"
+                        aria-label="Sélectionner ${city.name}">
+                    ${this.renderCityThumbHtml(city, 76)}
+                    <div class="px-2 py-1 d-flex justify-content-between align-items-center" style="background: var(--surface);">
+                        <span class="small fw-bold text-truncate">${city.name}</span>
+                        <i class="bi bi-plus-circle-fill text-lime small" aria-hidden="true"></i>
+                    </div>
+                </button>
+            </div>
+        `).join('');
+
         this.resultsContainerTarget.innerHTML = `
-            <div class="p-4 text-center text-muted">
-                <i class="bi bi-map fs-1 mb-2 d-block text-lime" aria-hidden="true"></i>
-                <div class="fw-bold mb-1">Sélectionnez votre itinéraire</div>
-                <div class="small">Cliquez sur une ville sur la carte (1er clic = départ, 2ème clic = arrivée) ou utilisez l'alternative clavier.</div>
+            <div class="p-1">
+                <div class="text-center mb-3">
+                    <div class="fw-bold small text-uppercase text-muted mb-1">Sélectionnez votre itinéraire</div>
+                    <div class="small text-muted">Cliquez sur une ville sur la carte ou sur une vignette ci-dessous (1er clic = départ, 2ème = arrivée).</div>
+                </div>
+                <div class="row g-2">${cityCards}</div>
             </div>
         `;
     }

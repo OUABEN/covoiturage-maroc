@@ -1,9 +1,20 @@
 {#
     Reusable Vehicle Visual Component
-    Uses a clean dark gradient badge fallback when no photorealistic car image is present (never a broken image).
+    Small local WebP car photo (public/images/cars/car-sm.webp) sized by displayHeight,
+    with the dark gradient icon badge as fallback if the file is missing (never a broken image).
+    Params: label, displayHeight.
 #}
-<span class="d-inline-flex align-items-center justify-content-center rounded-3 px-2 py-1"
-      style="height: {{ displayHeight ?? 36 }}px; background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); border: 1px solid var(--border); color: var(--accent);"
+{% set h = displayHeight ?? 36 %}
+<span class="d-inline-flex align-items-center justify-content-center rounded-3 overflow-hidden flex-shrink-0"
+      style="height: {{ h }}px; width: {{ (h * 1.8)|round }}px; background: linear-gradient(135deg, #0B0B0C 0%, #1C1C1F 100%); border: 1px solid var(--border); color: var(--accent);"
       title="{{ label ?? 'Véhicule de covoiturage' }}">
-    <i class="bi bi-car-front-fill" aria-hidden="true"></i>
+    <img src="/images/cars/car-sm.webp"
+         width="{{ (h * 1.8)|round }}"
+         height="{{ h }}"
+         loading="lazy"
+         decoding="async"
+         alt="{{ label is defined and label ? 'Véhicule ' ~ label : 'Véhicule de covoiturage' }}"
+         class="d-block w-100 h-100 object-fit-cover"
+         onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');">
+    <i class="bi bi-car-front-fill d-none" aria-hidden="true"></i>
 </span>
