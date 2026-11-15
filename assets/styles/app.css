@@ -636,6 +636,151 @@ a:hover {
     animation: skeletonShimmer 1.4s ease-in-out infinite;
 }
 
+/* Vertical Timeline on Trip Detail Page */
+.trip-vertical-timeline {
+    position: relative;
+    padding-left: 2.25rem;
+}
+
+.trip-vertical-timeline::before {
+    content: '';
+    position: absolute;
+    top: 1.25rem;
+    bottom: 1.25rem;
+    left: 0.85rem;
+    width: 2px;
+    background-color: var(--border);
+}
+
+.timeline-step {
+    position: relative;
+    padding: 1rem 1.25rem;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background-color: var(--surface-2);
+    margin-bottom: 0.85rem;
+    transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+}
+
+.timeline-step:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-step.is-active-portion {
+    border-color: var(--accent);
+    background-color: var(--surface);
+    box-shadow: var(--shadow-lime);
+}
+
+.timeline-node {
+    position: absolute;
+    left: -1.95rem;
+    top: 1.25rem;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: var(--surface-2);
+    border: 2px solid var(--border);
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.timeline-step.is-active-portion .timeline-node {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+}
+
+/* Leaflet Map Container & Markers */
+.trip-map-wrapper {
+    position: relative;
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background-color: var(--surface-2);
+    height: 360px;
+}
+
+.leaflet-stop-marker {
+    background-color: var(--accent);
+    color: var(--accent-contrast);
+    border: 2px solid #0B0B0C;
+    border-radius: 50%;
+    width: 28px !important;
+    height: 28px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.78rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+    background-color: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-soft) !important;
+}
+
+/* Auth Split-Screen Layout */
+.auth-split-card {
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    box-shadow: var(--shadow-soft);
+}
+
+.auth-visual-panel {
+    position: relative;
+    background: linear-gradient(155deg, #0B0B0C 0%, #141416 55%, #1C1C1F 100%);
+    color: #FFFFFF;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+.auth-visual-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 85% 20%, rgba(198, 244, 50, 0.22), transparent 55%);
+    pointer-events: none;
+}
+
+/* Symfony Form Error Lists */
+form ul {
+    list-style: none;
+    padding-left: 0;
+    margin-top: 0.35rem;
+    margin-bottom: 0;
+}
+
+form ul li,
+.invalid-feedback {
+    color: var(--danger);
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+[data-theme="dark"] form ul li,
+[data-theme="dark"] .invalid-feedback {
+    color: #FCA5A5;
+}
+
 @media (max-width: 991.98px) {
     .hero-3d-stage,
     .hero-floating-badge {
