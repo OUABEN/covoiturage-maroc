@@ -42,6 +42,7 @@
 
                 <form method="post" action="{{ path('app_my_vehicles') }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('manage_vehicle') }}">
+                    <input type="hidden" name="_redirect" value="{{ redirectTarget ?? '' }}">
 
                     <div class="mb-3">
                         <label for="brand" class="form-label">Marque</label>
@@ -78,8 +79,8 @@
                     </div>
 
                     <div class="mb-4">
-                        <label for="seats" class="form-label">Nombre de places passagers (1 à 9)</label>
-                        <input type="number" name="seats" id="seats" class="form-control" min="1" max="9" value="4" required>
+                        <label for="seats" class="form-label">Nombre de places passagers (1 à 8)</label>
+                        <input type="number" name="seats" id="seats" class="form-control" min="1" max="8" value="4" required>
                     </div>
 
                     <button type="submit" class="btn btn-lime w-100 py-3">

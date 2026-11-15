@@ -12,10 +12,14 @@ export default class extends Controller {
         'stopsContainer',
         'vehicleSelect',
         'seatsInput',
+        'summaryVehicle',
         'summaryChain',
+        'summarySegments',
+        'summaryDistance',
         'summaryPrice',
         'summaryRevenue',
         'summaryStopsCount',
+        'degradedBanner',
         'stepIndicator',
     ];
 
@@ -144,6 +148,11 @@ export default class extends Controller {
             return;
         }
         const rows = Array.from(this.stopsContainerTarget.querySelectorAll('.stop-row'));
+        let totalDistanceKm = 0;
+        let totalDurationMin = 0;
+        let hasAnyDegraded = false;
+        let hasAnyRoute = false;
+
         for (let i = 1; i < rows.length; i += 1) {
             const prevSelect = rows[i - 1].querySelector('select[name*="[city_id]"]');
             const currSelect = rows[i].querySelector('select[name*="[city_id]"]');
@@ -172,12 +181,25 @@ export default class extends Controller {
                 });
                 if (resp.ok) {
                     const data = await resp.json();
+                    const isDegraded = Boolean(data.degraded);
+                    if (isDegraded) {
+                        hasAnyDegraded = true;
+                    }
+                    if (typeof data.distanceKm === 'number') {
+                        hasAnyRoute = true;
+                        totalDistanceKm += data.distanceKm;
+                        totalDurationMin += Number(data.durationMinutes || 0);
+                    }
                     if (data.suggestedPrice) {
                         priceInput.value = data.suggestedPrice;
-                        priceInput.title = `Distance estimée : ${data.distanceKm} km (~${data.durationMinutes} min) — Prix suggéré OSRM : ${data.suggestedPrice} MAD`;
+                        priceInput.title = isDegraded
+                            ? `Estimation (repli Haversine) : ~${data.distanceKm} km (~${data.durationMinutes} min) — ${data.suggestedPrice} MAD`
+                            : `Distance OSRM : ${data.distanceKm} km (~${data.durationMinutes} min) — Prix suggéré : ${data.suggestedPrice} MAD`;
                     }
                     if (hint && typeof data.distanceKm === 'number') {
-                        hint.textContent = `OSRM : ~${data.distanceKm} km · ${data.durationMinutes} min · suggéré ${data.suggestedPrice} MAD`;
+                        hint.textContent = isDegraded
+                            ? `Estimation Haversine : ~${data.distanceKm} km · ~${data.durationMinutes} min · suggéré ${data.suggestedPrice} MAD`
+                            : `OSRM : ~${data.distanceKm} km · ${data.durationMinutes} min · suggéré ${data.suggestedPrice} MAD`;
                     }
                 }
             } catch (_) {
@@ -188,9 +210,22 @@ export default class extends Controller {
                 if (wrap) {
                     wrap.classList.remove('is-computing');
                 }
-                this.updateSummary();
             }
         }
+
+        this.totalDistanceKm = totalDistanceKm;
+        this.totalDurationMin = totalDurationMin;
+
+        if (this.hasDegradedBannerTarget) {
+            this.degradedBannerTarget.classList.toggle('d-none', !hasAnyDegraded);
+        }
+        if (this.hasSummaryDistanceTarget) {
+            this.summaryDistanceTarget.textContent = hasAnyRoute
+                ? `${hasAnyDegraded ? '~' : ''}${totalDistanceKm.toFixed(1)} km · ~${totalDurationMin} min`
+                : '—';
+        }
+
+        this.updateSummary();
     }
 
     updateSummary() {
@@ -199,19 +234,26 @@ export default class extends Controller {
         }
         const rows = Array.from(this.stopsContainerTarget.querySelectorAll('.stop-row'));
         const cities = [];
+        const segments = [];
         let totalPrice = 0;
 
         rows.forEach((row, idx) => {
             const select = row.querySelector('select[name*="[city_id]"]');
-            if (select && select.options[select.selectedIndex]) {
-                cities.push(select.options[select.selectedIndex].text.trim());
-            }
+            const cityName = select && select.options[select.selectedIndex]
+                ? select.options[select.selectedIndex].text.trim()
+                : `Étape ${idx + 1}`;
+            cities.push(cityName);
+
             if (idx > 0) {
                 const priceInput = row.querySelector('input[name*="[price_from_previous]"]');
                 const val = parseFloat(priceInput?.value || '0');
-                if (!Number.isNaN(val)) {
-                    totalPrice += val;
-                }
+                const safeVal = Number.isNaN(val) ? 0 : val;
+                totalPrice += safeVal;
+                segments.push({
+                    from: cities[idx - 1],
+                    to: cityName,
+                    price: safeVal.toFixed(2),
+                });
             }
         });
 
@@ -219,9 +261,21 @@ export default class extends Controller {
             ? Math.max(1, parseInt(this.seatsInputTarget.value || '1', 10))
             : 1;
 
+        if (this.hasSummaryVehicleTarget && this.hasVehicleSelectTarget) {
+            const opt = this.vehicleSelectTarget.options[this.vehicleSelectTarget.selectedIndex];
+            const label = opt ? opt.text.trim() : '';
+            this.summaryVehicleTarget.textContent = `${label} · ${seats} place(s) mise(s) en vente`;
+        }
+
         if (this.hasSummaryChainTarget) {
             this.summaryChainTarget.innerHTML = cities
                 .map((c, i) => `<div class="trip-summary__city"><span class="dot"></span><span>${i + 1}. ${c}</span></div>`)
+                .join('');
+        }
+
+        if (this.hasSummarySegmentsTarget) {
+            this.summarySegmentsTarget.innerHTML = segments
+                .map((s) => `<div class="d-flex justify-content-between gap-2"><span class="text-muted">${s.from} &rarr; ${s.to}</span><span class="fw-semibold">${s.price} MAD</span></div>`)
                 .join('');
         }
 

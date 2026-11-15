@@ -25,18 +25,65 @@
 </div>
 
 {% if vehicles is empty %}
-    <div class="card">
-        <div class="empty-state">
-            <div class="empty-state__art" aria-hidden="true">
-                <i class="bi bi-car-front"></i>
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="empty-state">
+                    <div class="empty-state__art" aria-hidden="true">
+                        <i class="bi bi-car-front"></i>
+                    </div>
+                    <h2 class="h5 fw-extrabold mb-2">Aucun véhicule enregistré</h2>
+                    <p class="text-muted small mb-4">
+                        Ajoutez votre véhicule ci-contre (ou depuis votre garage) pour débloquer immédiatement la publication de trajets multi-étapes.
+                    </p>
+                    <a href="{{ path('app_my_vehicles', {redirect: 'trip_new'}) }}" class="btn btn-lime">
+                        <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Ajouter un véhicule
+                    </a>
+                </div>
             </div>
-            <h2 class="h5 fw-extrabold mb-1">Aucun véhicule enregistré</h2>
-            <p class="text-muted small mb-3">
-                Vous devez d'abord ajouter un véhicule à votre profil avant de pouvoir publier un trajet.
-            </p>
-            <a href="{{ path('app_my_vehicles') }}" class="btn btn-lime">
-                <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Ajouter un véhicule
-            </a>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="icon-chip" style="width: 36px; height: 36px; font-size: 1rem;">
+                            <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
+                        </span>
+                        <div>
+                            <h2 class="h5 fw-extrabold mb-0">Ajout rapide de véhicule</h2>
+                            <p class="small text-muted mb-0">Retour automatique vers la publication après création</p>
+                        </div>
+                    </div>
+
+                    <form method="post" action="{{ path('app_my_vehicles') }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('manage_vehicle') }}">
+                        <input type="hidden" name="_redirect" value="trip_new">
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="quick_brand" class="form-label small">Marque</label>
+                                <input type="text" name="brand" id="quick_brand" class="form-control form-control-sm" placeholder="Ex. Dacia" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="quick_model" class="form-label small">Modèle</label>
+                                <input type="text" name="model" id="quick_model" class="form-control form-control-sm" placeholder="Ex. Duster" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="quick_color" class="form-label small">Couleur</label>
+                                <input type="text" name="color" id="quick_color" class="form-control form-control-sm" placeholder="Ex. Gris" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="quick_seats" class="form-label small">Places passagers (1 à 8)</label>
+                                <input type="number" name="seats" id="quick_seats" class="form-control form-control-sm" min="1" max="8" value="4" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-lime w-100 mt-4">
+                            <i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>Enregistrer et publier un trajet
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 {% else %}
@@ -241,13 +288,35 @@
                                 <span class="badge badge-lime" data-trip-builder-target="summaryStopsCount">2 étapes</span>
                             </div>
 
+                            <div class="p-3 rounded-3 border mb-3" style="background-color: var(--surface-2);">
+                                <div class="small text-muted text-uppercase fw-bold mb-1">Véhicule choisi</div>
+                                <div class="small fw-semibold" data-trip-builder-target="summaryVehicle">
+                                    {{ vehicles|first.brand }} {{ vehicles|first.model }} ({{ vehicles|first.color }}) &bull; {{ min(3, vehicles|first.seats) }}/{{ vehicles|first.seats }} pl.
+                                </div>
+                            </div>
+
+                            <div class="alert alert-warning small py-2 px-3 mb-3 d-none" role="status" data-trip-builder-target="degradedBanner">
+                                <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
+                                <strong>Estimation (repli Haversine) :</strong> le calcul routier OSRM est indisponible, les distances et tarifs suggérés sont estimés à vol d'oiseau.
+                            </div>
+
                             <div class="small text-muted text-uppercase fw-bold mb-2">Chaîne des étapes</div>
                             <div class="trip-summary__chain p-3 rounded-3 border mb-3"
                                  style="background-color: var(--surface-2);"
                                  data-trip-builder-target="summaryChain">
                             </div>
 
+                            <div class="small text-muted text-uppercase fw-bold mb-2">Total par segment</div>
+                            <div class="p-3 rounded-3 border mb-3 vstack gap-1 small"
+                                 style="background-color: var(--surface-2);"
+                                 data-trip-builder-target="summarySegments">
+                            </div>
+
                             <div class="p-3 rounded-3 border mb-3" style="background-color: var(--surface-2);">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small text-muted">Distance &amp; durée totales</span>
+                                    <span class="small fw-semibold" data-trip-builder-target="summaryDistance">—</span>
+                                </div>
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span class="small text-muted">Tarif trajet complet / passager</span>
                                     <span class="summary-value" data-trip-builder-target="summaryPrice">100.00 MAD</span>
