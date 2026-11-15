@@ -32,10 +32,16 @@ docker compose up --build -d
 | Rôle | Email | Nom | Détails |
 |---|---|---|---|
 | **Admin** | `admin@covoiturage.ma` | Karim El Mansouri | Accès `/admin` (`ROLE_ADMIN`) |
-| **Conducteur** | `youssef.benali@covoiturage.ma` | Youssef Benali | Dacia Duster (4 pl.), Renault Clio 5 (3 pl.) |
-| **Conducteur** | `fatima.alaoui@covoiturage.ma` | Fatima-Zahra Alaoui | Peugeot 3008 (4 pl.) |
-| **Passager** | `mehdi.tazi@covoiturage.ma` | Mehdi Tazi | Réservations actives et terminées |
-| **Passager** | `nadia.berrada@covoiturage.ma` | Nadia Berrada | Réservations actives et terminées |
+| **Conducteur** | `youssef.benali@covoiturage.ma` | Youssef Benali | Dacia Duster (4 pl.), Renault Clio 5 (3 pl.), 2 trajets publiés + 1 terminé |
+| **Conducteur** | `fatima.alaoui@covoiturage.ma` | Fatima-Zahra Alaoui | Peugeot 3008 (4 pl.), 2 trajets publiés + 1 terminé |
+| **Passager & Conducteur** | `mehdi.tazi@covoiturage.ma` | Mehdi Tazi | Hyundai Tucson (4 pl.), 2 trajets publiés + 1 terminé + 5 réservations |
+| **Passager** | `nadia.berrada@covoiturage.ma` | Nadia Berrada | 7 réservations, aucun véhicule (idéal pour tester l'état vide `/mes-trajets` et `/trajets/nouveau`) |
+
+> **Jeu de données complet (`DriverDemoFixtures` inclus)** : 10 villes marocaines, 8 utilisateurs, 6 véhicules, 14 trajets (8 publiés, 5 terminés, 1 annulé), 19 réservations (dont 17 confirmées).  
+> Les fixtures ne se chargent automatiquement qu'au premier démarrage (table `city` vide). Pour recharger les fixtures sur une base locale existante (attention : purge la base de dev) :
+> ```bash
+> docker compose exec php php bin/console doctrine:fixtures:load --no-interaction
+> ```
 
 ---
 
