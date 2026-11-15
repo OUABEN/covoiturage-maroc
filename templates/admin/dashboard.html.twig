@@ -5,39 +5,57 @@
 {% block main %}
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3">
-            <div class="text-muted small text-uppercase fw-bold">Villes référencées</div>
-            <div class="fs-2 fw-bold text-success">{{ citiesCount }}</div>
+        <div class="ea-kpi-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small text-uppercase fw-bold opacity-75">Villes référencées</span>
+                <span class="ea-kpi-badge"><i class="fa fa-city"></i></span>
+            </div>
+            <div class="fs-2 fw-bold">{{ citiesCount }}</div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3">
-            <div class="text-muted small text-uppercase fw-bold">Utilisateurs inscrits</div>
-            <div class="fs-2 fw-bold text-primary">{{ usersCount }}</div>
+        <div class="ea-kpi-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small text-uppercase fw-bold opacity-75">Utilisateurs inscrits</span>
+                <span class="ea-kpi-badge"><i class="fa fa-users"></i></span>
+            </div>
+            <div class="fs-2 fw-bold">{{ usersCount }}</div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3">
-            <div class="text-muted small text-uppercase fw-bold">Véhicules enregistrés</div>
-            <div class="fs-2 fw-bold text-secondary">{{ vehiclesCount }}</div>
+        <div class="ea-kpi-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small text-uppercase fw-bold opacity-75">Véhicules enregistrés</span>
+                <span class="ea-kpi-badge"><i class="fa fa-car"></i></span>
+            </div>
+            <div class="fs-2 fw-bold">{{ vehiclesCount }}</div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3">
-            <div class="text-muted small text-uppercase fw-bold">Trajets multi-étapes</div>
-            <div class="fs-2 fw-bold text-info">{{ tripsCount }}</div>
+        <div class="ea-kpi-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small text-uppercase fw-bold opacity-75">Trajets multi-étapes</span>
+                <span class="ea-kpi-badge"><i class="fa fa-route"></i></span>
+            </div>
+            <div class="fs-2 fw-bold">{{ tripsCount }}</div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3">
-            <div class="text-muted small text-uppercase fw-bold">Réservations (lecture seule)</div>
-            <div class="fs-2 fw-bold text-warning">{{ bookingsCount }}</div>
+        <div class="ea-kpi-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small text-uppercase fw-bold opacity-75">Réservations (lecture seule)</span>
+                <span class="ea-kpi-badge"><i class="fa fa-ticket"></i></span>
+            </div>
+            <div class="fs-2 fw-bold">{{ bookingsCount }}</div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3">
-            <div class="text-muted small text-uppercase fw-bold">Avis publiés</div>
-            <div class="fs-2 fw-bold text-danger">{{ reviewsCount }}</div>
+        <div class="ea-kpi-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small text-uppercase fw-bold opacity-75">Avis publiés</span>
+                <span class="ea-kpi-badge"><i class="fa fa-star"></i></span>
+            </div>
+            <div class="fs-2 fw-bold">{{ reviewsCount }}</div>
         </div>
     </div>
 </div>

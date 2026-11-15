@@ -1,6 +1,11 @@
 :root {
     --ea-accent: #C6F432;
+    --ea-accent-hover: #D4FA58;
     --ea-accent-contrast: #0B0B0C;
+    --ea-bg-dark: #0B0B0C;
+    --ea-surface-dark: #141416;
+    --ea-surface-2-dark: #1C1C1F;
+    --ea-border-dark: #2A2A2E;
 }
 
 body.ea-dark-scheme {
@@ -9,6 +14,8 @@ body.ea-dark-scheme {
     --sidebar-bg: #141416;
     --sidebar-border-color: #2A2A2E;
     --table-cell-border-color: #2A2A2E;
+    --form-control-bg: #1C1C1F;
+    --form-input-border-color: #2A2A2E;
 }
 
 .btn-primary,
@@ -16,5 +23,61 @@ body.ea-dark-scheme {
     background-color: var(--ea-accent) !important;
     border-color: var(--ea-accent) !important;
     color: var(--ea-accent-contrast) !important;
-    font-weight: 700 !important;
+    font-weight: 800 !important;
+    border-radius: 10px !important;
+    transition: transform 180ms ease, box-shadow 180ms ease !important;
+}
+
+.btn-primary:hover,
+.action-new.btn-primary:hover {
+    background-color: var(--ea-accent-hover) !important;
+    border-color: var(--ea-accent-hover) !important;
+    color: var(--ea-accent-contrast) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(198, 244, 50, 0.28);
+}
+
+#main-menu .menu .menu-item.active > a {
+    background-color: var(--ea-accent) !important;
+    color: var(--ea-accent-contrast) !important;
+    font-weight: 800 !important;
+    border-radius: 10px;
+}
+
+#main-menu .menu .menu-item.active > a .menu-icon {
+    color: var(--ea-accent-contrast) !important;
+}
+
+.ea-kpi-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    padding: 1.35rem;
+    border: 1px solid rgba(198, 244, 50, 0.28);
+    background: linear-gradient(145deg, rgba(20, 20, 22, 0.92), rgba(28, 28, 31, 0.85));
+    color: #FFFFFF;
+    transition: transform 220ms ease, border-color 220ms ease;
+}
+
+body:not(.ea-dark-scheme) .ea-kpi-card {
+    background: #F5F5F5;
+    color: #0B0B0C;
+    border-color: #E4E4E7;
+}
+
+.ea-kpi-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--ea-accent);
+}
+
+.ea-kpi-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background-color: var(--ea-accent);
+    color: var(--ea-accent-contrast);
+    font-weight: 800;
 }
