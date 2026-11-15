@@ -1,99 +1,81 @@
-# Covoiturage Régional au Maroc — PFE Challenge EMC (Sujet 3)
+# AtlasCovoit Maroc — Plateforme de Covoiturage Régional Multi-Étapes (PFE Challenge EMC · Sujet 3)
 
-Plateforme web de covoiturage interurbain et régional au Maroc développée avec **Symfony 7.4**, **PHP 8.3**, **Doctrine ORM 3** et **MySQL 8.0**.
+Plateforme web complète de covoiturage interurbain et régional au Maroc développée avec **Symfony 7.4**, **PHP 8.3**, **Doctrine ORM 3.7**, **MySQL 8.0**, **Stimulus / AssetMapper** et **Leaflet / OpenStreetMap**.
 
-La particularité métier du projet repose sur la **gestion de trajets multi-étapes découpés en segments** (ex. *Casablanca → Settat → Marrakech → Agadir*), permettant de calculer dynamiquement les places disponibles et le tarif exact sur n'importe quelle portion du trajet et de revendre une place libérée à une étape intermédiaire.
-
----
-
-## 1. Sujet choisi et niveaux visés
-
-- **Sujet** : **Sujet 3 — Plateforme de covoiturage régional** (PFE Challenge EMC).
-- **Niveaux visés** :
-  - **Niveau 1 (Socle fonctionnel)** : Modélisation par segments (`Trip`, `TripStop`, `Booking`), authentification, gestion des véhicules, publication de trajets multi-étapes et recherche de trajets par ville de départ, ville d'arrivée et date.
-  - **Niveau 2 (Gestion avancée des réservations & annulations)** : Réservation d'une ou plusieurs places sur une portion `[fromStop, toStop]`, calcul des disponibilités par segment, annulation par le passager ou le conducteur avec calcul automatique du remboursement (`refundAmount`) selon le préavis.
-  - **Niveau 3 (Fiabilité, Avis croisés & Qualité logicielle)** : Système d'évaluation mutuelle conducteur/passager après trajet terminé (`Review`), verrouillage et intégrité transactionnelle, jeu de données réaliste (villes et axes routiers marocains), suite de tests unitaires et fonctionnels PHPUnit.
+La particularité cœur du projet repose sur la **modélisation de trajets multi-étapes découpés en segments élémentaires** (ex. *Agadir → Marrakech → Casablanca*), permettant :
+- de calculer dynamiquement les places disponibles et le tarif exact sur n'importe quelle sous-portion $[i, j[$ ;
+- de **revendre automatiquement une place libérée** à une étape intermédiaire sur les tronçons suivants ;
+- de garantir **zéro surréservation** grâce au verrouillage pessimiste SQL (`PESSIMISTIC_WRITE` / `SELECT ... FOR UPDATE`) dans `BookingService`.
 
 ---
 
-## 2. Stack technique
+## 1. Niveaux atteints (Niveaux 1 à 5)
 
-| Composant | Technologie / Version |
-|---|---|
-| Framework Backend | Symfony 7.4 (Webapp Pack) |
-| Langage | PHP 8.3 (`strict_types=1`, Enums Backed, Attributs PHP 8) |
-| ORM & Migrations | Doctrine ORM 3.7 & Doctrine Migrations 3.7 |
-| Base de données | MySQL 8.0 (`utf8mb4`, types `DECIMAL` exacts) |
-| Serveur Web | Nginx 1.27 (Alpine) + PHP-FPM 8.3 (Alpine) |
-| Conteneurisation | Docker & Docker Compose (`compose.yaml` + `compose.override.yaml`) |
-| Tests | PHPUnit 11.5 |
+| Niveau | Périmètre | Statut |
+|---|---|---|
+| **Niveau 1 — Socle** | Entités, migrations SQL, fixtures réalistes marocaines, authentification, véhicules, publication et recherche de trajets par segment | **100 % Terminé** |
+| **Niveau 2 — Cœur métier** | `AvailabilityService`, `BookingService` (`PESSIMISTIC_WRITE`), `CancellationService` (règles 100 % / 50 % / 0 % / décalage > 30 min), `ReviewService`, `TripService`, 31 tests métier | **100 % Terminé** |
+| **Niveau 3 — Application web complète** | Contrôleurs HTTP, sécurité (`form_login`, `remember_me`, CSRF, Voters `BookingVoter`/`VehicleVoter`/`TripVoter`), aperçu du remboursement avant confirmation, profils publics anonymisés (sans email/téléphone), back-office EasyAdmin 4 | **100 % Terminé** |
+| **Niveau 4 — API externes & Cartographie** | Clients HTTP `NominatimClient` (rate limiter 1 req/s + cache 30j) et `OsrmClient` (cache 7j), `RoutePricingService` avec fallback Haversine hors-ligne, endpoint JSON `/api/route`, carte interactive Leaflet | **100 % Terminé** |
+| **Niveau 5 — Livraison & Reproductibilité** | Stack Docker clé en main (`docker compose up -d --build`), auto-configuration (`APP_SECRET`, migrations dev/test, assets, fixtures), [`INSTALL.md`](INSTALL.md), [`.env.example`](.env.example), 45 tests PHPUnit verts | **100 % Terminé** |
 
 ---
 
-## 3. Lancement rapide avec Docker
+## 2. Démarrage rapide (1 commande)
 
-### Prérequis
-- **Docker** et **Docker Compose** installés et démarrés.
+Aucun prérequis local autre que **Docker Desktop** et **Git** (ni PHP local, ni Composer, ni XAMPP).
 
-### Démarrer l'application
 ```bash
-docker compose up --build -d
+git clone https://github.com/anasouali06-dev/covoiturage-maroc.git
+cd covoiturage-maroc
+docker compose up -d --build
 ```
 
-Au démarrage, le conteneur `php` exécute automatiquement ([docker/php/entrypoint.sh](docker/php/entrypoint.sh)) :
-1. `composer install --no-interaction --prefer-dist`
-2. L'attente active de la disponibilité de MySQL 8.0 (`database:3306`)
-3. L'exécution des migrations Doctrine (`php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration`)
-4. En environnement `dev` uniquement, si la table `city` est vide : le chargement automatique des fixtures (`php bin/console doctrine:fixtures:load --no-interaction`)
+- **Application Web** : http://localhost:8088 *(configurable via `NGINX_PORT`)*
+- **Back-office EasyAdmin** : http://localhost:8088/admin
+- **API Route OSRM** : http://localhost:8088/api/route?from=1&to=2
+- **phpMyAdmin** : http://localhost:8081 *(`app` / `app`)*
 
-### Accès aux services
-- **Application Symfony** : http://localhost:8080 *(surchargeable via la variable d'environnement `NGINX_PORT` si le port 8080 est déjà utilisé sur la machine hôte)*
-- **phpMyAdmin** (dev) : http://localhost:8081 *(utilisateur : `app`, mot de passe : `app`)*
-- **MySQL 8.0** (depuis l'hôte) : `127.0.0.1:3308` *(base : `covoiturage`, utilisateur : `app`, mot de passe : `app`)*
-
-### Comptes de démonstration (Fixtures)
-Tous les comptes de démonstration partagent le mot de passe commun : **`demo1234`**
-
-| Rôle métier | Email | Nom complet | Rôle Symfony | Véhicule(s) |
-|---|---|---|---|---|
-| **Administrateur** | `admin@covoiturage.ma` | Karim El Mansouri | `ROLE_ADMIN` | — |
-| **Conducteur 1** | `youssef.benali@covoiturage.ma` | Youssef Benali | `ROLE_USER` | Dacia Duster (4 pl.), Renault Clio 5 (3 pl.) |
-| **Conducteur 2** | `fatima.alaoui@covoiturage.ma` | Fatima-Zahra Alaoui | `ROLE_USER` | Peugeot 3008 (4 pl.) |
-| **Conducteur 3** | `omar.aitbrahim@covoiturage.ma` | Omar Aït Brahim | `ROLE_USER` | Volkswagen Golf 8 (4 pl.) |
-| **Conducteur 4** | `salma.chraibi@covoiturage.ma` | Salma Chraïbi | `ROLE_USER` | Hyundai Tucson (4 pl.) |
-| **Passager 1** | `mehdi.tazi@covoiturage.ma` | Mehdi Tazi | `ROLE_USER` | — |
-| **Passager 2** | `nadia.berrada@covoiturage.ma` | Nadia Berrada | `ROLE_USER` | — |
-| **Passager 3** | `hamza.idrissi@covoiturage.ma` | Hamza Idrissi | `ROLE_USER` | — |
-
-### Commandes utiles (via Docker)
-```bash
-# Recharger les données de démonstration (idempotent)
-docker compose exec php php bin/console doctrine:fixtures:load --no-interaction
-
-# Valider le mapping Doctrine et la synchronisation du schéma SQL
-docker compose exec php php bin/console doctrine:schema:validate
-
-# Générer puis appliquer une migration
-docker compose exec php php bin/console doctrine:migrations:diff
-docker compose exec php php bin/console doctrine:migrations:migrate -n
-
-# Lancer la suite de tests PHPUnit
-docker compose exec php php bin/phpunit
-```
+Consultez le guide détaillé **[INSTALL.md](INSTALL.md)** pour la liste complète des comptes de démonstration (mot de passe commun : **`demo1234`**), les commandes utiles et le guide de dépannage.
 
 ---
 
-## 4. Documentation d'architecture et métier
+## 3. Ce qui fonctionne (Vérifié par 45 tests automatisés)
 
-- **[docs/MODELE.md](docs/MODELE.md)** : Diagramme Entité-Association (`Mermaid erDiagram`), formule de disponibilité par segments, justification du prix figé, des enums PHP 8.1, de `seatsTotal` et des index SQL.
-- **[docs/DECISIONS.md](docs/DECISIONS.md)** : Journal daté des décisions techniques et réponses argumentées aux **5 questions métier à trancher** du sujet.
+- **Recherche et réservation par segment** : recherche sur les sous-portions $[fromStop, toStop]$ avec filtre de capacité minimale par segment et prix cumulé exact.
+- **Anti-surréservation transactionnelle** : `BookingService` est le **seul point d'entrée** pour créer une réservation, protégé par `LockMode::PESSIMISTIC_WRITE` sur l'entité `Trip`.
+- **Annulation et remboursement déterministe (`CancellationService`)** :
+  - **100 %** si annulée par le conducteur, si annulée > 24h avant le départ du segment, ou si le trajet a subi un décalage horaire > 30 min par rapport à `originalDepartureTime` / `originalArrivalTime`.
+  - **50 %** entre 2h et 24h avant le départ.
+  - **0 %** à moins de 2h du départ.
+  - **Aperçu obligatoire avant confirmation** sur `GET /mes-reservations/{id}/annuler`.
+- **Espaces Passager & Conducteur sécurisés par Voters** : `BookingVoter`, `VehicleVoter`, `TripVoter`.
+- **Profils publics respectueux de la vie privée** (`/utilisateurs/{id}`) : affiche prénom, nom, note moyenne et avis reçus, sans jamais exposer l'e-mail ni le numéro de téléphone.
+- **Back-office EasyAdmin 4** (`/admin`) : réservé à `ROLE_ADMIN`, hachage automatique des mots de passe dans `UserCrudController`, création manuelle de `Booking` désactivée (`Action::NEW` retirée) et action personnalisée d'annulation déléguant à `CancellationService`.
+- **Géocodage Nominatim, routage OSRM & carte Leaflet** : endpoint `/api/route?from=ID&to=ID`, mode dégradé Haversine automatique si hors-ligne, carte Leaflet avec tuiles CartoDB Dark Matter / Positron basculant dynamiquement selon le thème.
+- **Design Midnight Black `#0B0B0C` / Pure White `#FFFFFF` / Lime `#C6F432`** : sélecteur de thème clair/sombre sans flash (`localStorage` + `prefers-color-scheme`), hero 3D interactif, calculateur de prix en temps réel via Stimulus sur la fiche trajet, pages connexion/inscription en split-screen.
 
 ---
 
-## 5. État d'avancement
+## 4. Ce qui reste à faire (État des lieux honnête)
 
-- [x] **Étape 0** : Stack Docker complète (PHP 8.3-FPM + Nginx + MySQL 8.0 + phpMyAdmin) avec auto-installation Composer et migrations au démarrage.
-- [x] **Étape 1** : Modèle de données complet (`User`, `Vehicle`, `City`, `Trip`, `TripStop`, `Booking`, `Review`), enums `TripStatus` et `BookingStatus`, contraintes de validation et migrations SQL validées.
-- [x] **Étape 2** : Documentation du modèle (`docs/MODELE.md`), journal des décisions et réponses aux 5 questions métier (`docs/DECISIONS.md`), et `README.md`.
-- [x] **Étape 3** : Fixtures réalistes et idempotentes (10 villes marocaines, 8 utilisateurs, 5 véhicules, 8 trajets multi-étapes, 14 réservations et avis croisés).
-- [ ] **Prochaines étapes** : Services métier (calcul de disponibilité par segment, tarification, réservation, annulation/remboursement), Authentification, Contrôleurs/Vues Twig et Tests PHPUnit.
+1. **Finitions visuelles du Groupe 2b (reportées pour prioriser la livraison)** :
+   - Les pages du **Groupe 1** (Accueil, Hero 3D, Recherche, Navbar sticky verre, Mode Clair/Sombre) et du **Groupe 2a** (Détail d'un trajet avec timeline verticale, carte Leaflet `/api/route` et calculateur Stimulus ; Connexion et Inscription en split-screen avec validation champ par champ) sont intégralement refondues.
+   - Les pages du **Groupe 2b** (Espace passager, Espace conducteur, Profil public, Pages d'erreur HTTP personnalisées 403/404/500 et surcouche CSS dédiée EasyAdmin) héritent du système de design global (`assets/styles/app.css` en mode sombre/clair) et sont **100 % fonctionnelles et validées par PHPUnit**, mais n'intègrent pas encore les composants visuels avancés prévus au Groupe 2b (stepper Stimulus multi-étapes d'ajout dynamique d'arrêts sur `/trajets/nouveau`, barres horizontales de répartition 5★→1★ sur le profil, gabarits d'erreur personnalisés `bundles/TwigBundle/Exception/`).
+2. **Génération des 13 photographies IA restantes** :
+   - La photographie photoréaliste d'**Agadir** (`public/images/cities/agadir.webp` et `agadir-sm.webp`) a été générée avec le modèle d'image Gemini et intégrée avec `srcset` responsive.
+   - En raison de la limite de quota de l'API de génération d'images (`429 RESOURCE_EXHAUSTED`), les 9 autres villes, les 3 véhicules et le visuel hero utilisent le composant de fallback propre (`templates/components/city_image.html.twig` et `car_image.html.twig` : dégradé sombre `#0B0B0C` avec badge Lime `#C6F432` et nom de la ville, garantissant zéro image cassée). Tous les prompts prêts à être exécutés sont documentés dans **[docs/IMAGE-PROMPTS.md](docs/IMAGE-PROMPTS.md)**.
+3. **Paiement en ligne et envoi d'e-mails Transactionnels** :
+   - Le calcul des prix et des remboursements (`totalPrice`, `refundAmount`) est complet en base de données, mais aucun prestataire de paiement bancaire (Stripe/CMI) n'est branché. `MAILER_DSN` est configuré sur `null://null` par défaut.
+
+---
+
+## 5. Documentation complète (`docs/`)
+
+- **[INSTALL.md](INSTALL.md)** : Guide d'installation pas à pas, comptes de démo, tests et dépannage.
+- **[docs/MATRICE-FONCTIONNELLE.md](docs/MATRICE-FONCTIONNELLE.md)** : Matrice de traçabilité complète (Fonctionnalité → Route → Contrôleur → Service → Test PHPUnit → Statut).
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** : Architecture en couches, services métier, algorithme de disponibilité par segment, verrouillage `PESSIMISTIC_WRITE` et règles de remboursement.
+- **[docs/MODELE.md](docs/MODELE.md)** : Diagramme Entité-Association (`Mermaid erDiagram`), dictionnaire de données et index SQL.
+- **[docs/DECISIONS.md](docs/DECISIONS.md)** : Journal des décisions architecturales et réponses aux 5 questions métier du sujet.
+- **[docs/TESTS.md](docs/TESTS.md)** : Stratégie de test et couverture des 45 tests automatisés (285 assertions).
+- **[docs/IMAGE-PROMPTS.md](docs/IMAGE-PROMPTS.md)** & **[docs/CREDITS.md](docs/CREDITS.md)** : Prompts photoréalistes et crédits des ressources visuelles et cartographiques.
