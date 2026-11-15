@@ -26,13 +26,15 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: ${APP_ENV:-dev}
-      APP_SECRET: ${APP_SECRET:-}
+      APP_SECRET: ${APP_SECRET:-dev_public_secret_covoiturage_maroc_2026}
+      DEFAULT_URI: http://localhost:${NGINX_PORT:-8088}
       DATABASE_URL: mysql://${MYSQL_USER:-app}:${MYSQL_PASSWORD:-app}@database:3306/${MYSQL_DATABASE:-covoiturage}?serverVersion=8.0&charset=utf8mb4
       MYSQL_HOST: database
       MYSQL_PORT: 3306
       MYSQL_DATABASE: ${MYSQL_DATABASE:-covoiturage}
       MYSQL_USER: ${MYSQL_USER:-app}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
     healthcheck:
       test: ["CMD-SHELL", "php -v >/dev/null 2>&1 && pidof php-fpm >/dev/null"]
       interval: 10s
