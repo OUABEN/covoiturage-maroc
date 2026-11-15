@@ -1,0 +1,620 @@
+/* ==========================================================================
+   AtlasCovoit — Motion System
+   Global animations applied to every page: aurora background, scroll progress,
+   cross-document view transitions, circular theme reveal, auto scroll-reveal,
+   cursor spotlight, magnetic buttons, ripples, loading states, toasts, marquee.
+   Everything is disabled under prefers-reduced-motion.
+   ========================================================================== */
+
+:root {
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --grid-line: rgba(255, 255, 255, 0.035);
+    --aurora-opacity: 0.16;
+}
+
+[data-theme="light"] {
+    --grid-line: rgba(11, 11, 12, 0.045);
+    --aurora-opacity: 0.32;
+}
+
+@property --angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
+/* --------------------------------------------------------------------------
+   1. Cross-document View Transitions (Chrome 126+) & circular theme reveal
+   -------------------------------------------------------------------------- */
+@view-transition {
+    navigation: auto;
+}
+
+.navbar-glass {
+    view-transition-name: site-nav;
+}
+
+::view-transition-old(root) {
+    animation: vt-page-out 200ms ease both;
+}
+
+::view-transition-new(root) {
+    animation: vt-page-in 420ms var(--ease-out-expo) both;
+}
+
+@keyframes vt-page-out {
+    to {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.995);
+        filter: blur(3px);
+    }
+}
+
+@keyframes vt-page-in {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.995);
+        filter: blur(6px);
+    }
+}
+
+html.theme-transition .navbar-glass {
+    view-transition-name: none;
+}
+
+html.theme-transition::view-transition-old(root),
+html.theme-transition::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+    transition: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. Aurora animated background + blueprint grid
+   -------------------------------------------------------------------------- */
+.aurora {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.aurora__blob {
+    position: absolute;
+    width: 46vmax;
+    height: 46vmax;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, var(--accent) 0%, transparent 62%);
+    opacity: var(--aurora-opacity);
+    filter: blur(70px);
+    will-change: transform;
+}
+
+.aurora__blob--1 {
+    top: -22vmax;
+    right: -12vmax;
+    animation: aurora-drift-1 26s ease-in-out infinite alternate;
+}
+
+.aurora__blob--2 {
+    bottom: -26vmax;
+    left: -16vmax;
+    opacity: calc(var(--aurora-opacity) * 0.7);
+    animation: aurora-drift-2 32s ease-in-out infinite alternate;
+}
+
+.aurora__blob--3 {
+    top: 35%;
+    left: 45%;
+    width: 26vmax;
+    height: 26vmax;
+    opacity: calc(var(--aurora-opacity) * 0.45);
+    animation: aurora-drift-3 22s ease-in-out infinite alternate;
+}
+
+.aurora__grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 10%, transparent 75%);
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 10%, transparent 75%);
+}
+
+@keyframes aurora-drift-1 {
+    to { transform: translate3d(-14vmax, 10vmax, 0) scale(1.15); }
+}
+
+@keyframes aurora-drift-2 {
+    to { transform: translate3d(18vmax, -8vmax, 0) scale(0.9); }
+}
+
+@keyframes aurora-drift-3 {
+    to { transform: translate3d(-20vmax, -14vmax, 0) scale(1.3); }
+}
+
+/* --------------------------------------------------------------------------
+   3. Scroll progress bar, navbar shrink & back-to-top ring
+   -------------------------------------------------------------------------- */
+.scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 2000;
+    background: linear-gradient(90deg, var(--accent), #EFFFB0, var(--accent));
+    transform-origin: 0 50%;
+    transform: scaleX(var(--scroll, 0));
+    box-shadow: 0 0 12px rgba(198, 244, 50, 0.55);
+    pointer-events: none;
+}
+
+.navbar-glass {
+    transition: padding 260ms var(--ease-out-expo), box-shadow 260ms ease, background-color 200ms ease, border-color 200ms ease;
+}
+
+.navbar-glass.is-scrolled {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+    box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.45);
+}
+
+.navbar-brand .brand-mark {
+    transition: transform 420ms var(--ease-spring);
+}
+
+.navbar-brand:hover .brand-mark {
+    transform: rotate(-12deg) scale(1.08);
+}
+
+.back-to-top {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 1500;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    color: var(--text);
+    display: grid;
+    place-items: center;
+    box-shadow: var(--shadow-soft);
+    opacity: 0;
+    transform: translateY(16px) scale(0.85);
+    pointer-events: none;
+    transition: opacity 260ms ease, transform 360ms var(--ease-spring), background-color 160ms ease;
+}
+
+.back-to-top.is-visible {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+
+.back-to-top:hover {
+    background-color: var(--accent);
+    color: var(--accent-contrast);
+}
+
+.back-to-top svg {
+    position: absolute;
+    inset: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    transform: rotate(-90deg);
+}
+
+.back-to-top circle {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 100;
+    stroke-dashoffset: calc(100 - var(--scroll-pct, 0));
+}
+
+/* --------------------------------------------------------------------------
+   4. Auto scroll-reveal (added by assets/motion.js, html.js-motion only)
+   -------------------------------------------------------------------------- */
+html.js-motion main .card:not(.card .card),
+html.js-motion main [data-reveal] {
+    transition:
+        opacity 640ms var(--ease-out-expo),
+        transform 760ms var(--ease-out-expo),
+        background-color 200ms ease,
+        border-color 200ms ease,
+        box-shadow 220ms ease;
+}
+
+html.js-motion main .card:not(.card .card):not(.is-revealed),
+html.js-motion main [data-reveal]:not(.is-revealed) {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+}
+
+html.js-motion main [data-reveal="left"]:not(.is-revealed) {
+    transform: translateX(-28px);
+}
+
+html.js-motion main [data-reveal="right"]:not(.is-revealed) {
+    transform: translateX(28px);
+}
+
+html.js-motion main [data-reveal="scale"]:not(.is-revealed) {
+    transform: scale(0.92);
+}
+
+/* Failsafe: if the motion script never boots, show everything after 2.5s */
+html.js-motion:not(.motion-booted) main .card:not(.card .card),
+html.js-motion:not(.motion-booted) main [data-reveal] {
+    animation: reveal-failsafe 10ms 2.5s forwards;
+}
+
+@keyframes reveal-failsafe {
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   5. Cursor spotlight on cards + glowing hover lift
+   -------------------------------------------------------------------------- */
+.card,
+.spotlight {
+    background-image: radial-gradient(520px circle at var(--mx, -999px) var(--my, -999px), rgba(198, 244, 50, 0.075), transparent 42%);
+}
+
+[data-theme="light"] .card,
+[data-theme="light"] .spotlight {
+    background-image: radial-gradient(520px circle at var(--mx, -999px) var(--my, -999px), rgba(198, 244, 50, 0.28), transparent 42%);
+}
+
+.hover-lift {
+    transition: opacity 640ms var(--ease-out-expo), transform 520ms var(--ease-out-expo), border-color 200ms ease, box-shadow 260ms ease !important;
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px) !important;
+    border-color: rgba(198, 244, 50, 0.55) !important;
+    box-shadow: 0 24px 48px -18px rgba(198, 244, 50, 0.22), var(--shadow-soft) !important;
+}
+
+/* Rotating conic border (premium highlight) */
+.glow-border {
+    position: relative;
+    isolation: isolate;
+}
+
+.glow-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(from var(--angle), transparent 0deg, transparent 220deg, var(--accent) 300deg, #EFFFB0 330deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: spin-angle 5s linear infinite;
+    pointer-events: none;
+}
+
+.search-floating-card {
+    position: relative;
+    isolation: isolate;
+}
+
+.search-floating-card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(from var(--angle), transparent 0deg, transparent 220deg, var(--accent) 300deg, #EFFFB0 330deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: spin-angle 6s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes spin-angle {
+    to { --angle: 360deg; }
+}
+
+/* --------------------------------------------------------------------------
+   6. Buttons: magnetic follow, ripple, loading spinner, shine on highlights
+   -------------------------------------------------------------------------- */
+.btn {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.btn-lime,
+.btn-brand {
+    transform: translate3d(var(--mag-x, 0px), var(--mag-y, 0px), 0);
+    transition: transform 260ms var(--ease-out-expo), background-color 160ms ease, box-shadow 200ms ease !important;
+}
+
+.btn-lime:hover,
+.btn-brand:hover {
+    transform: translate3d(var(--mag-x, 0px), calc(var(--mag-y, 0px) - 2px), 0) !important;
+}
+
+.btn-lime:active,
+.btn-brand:active {
+    transform: translate3d(var(--mag-x, 0px), var(--mag-y, 0px), 0) scale(0.97) !important;
+}
+
+.ripple {
+    position: absolute;
+    z-index: -1;
+    border-radius: 50%;
+    background-color: currentColor;
+    opacity: 0.22;
+    transform: scale(0);
+    pointer-events: none;
+    animation: ripple-out 650ms var(--ease-out-expo) forwards;
+}
+
+@keyframes ripple-out {
+    to {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
+.btn.is-loading {
+    pointer-events: none;
+    opacity: 0.92;
+}
+
+.btn.is-loading > i {
+    display: none;
+}
+
+.btn.is-loading::before {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.5em;
+    vertical-align: -0.15em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.text-highlight-lime {
+    background-image: linear-gradient(110deg, var(--accent) 35%, #F2FFC4 50%, var(--accent) 65%);
+    background-size: 260% 100%;
+    animation: highlight-shine 5.5s ease-in-out infinite;
+}
+
+@keyframes highlight-shine {
+    0%, 55% { background-position: 100% 0; }
+    100% { background-position: -60% 0; }
+}
+
+/* --------------------------------------------------------------------------
+   7. Flash toasts: slide-in, auto-hide progress, leave animation
+   -------------------------------------------------------------------------- */
+main .alert {
+    position: relative;
+    overflow: hidden;
+    animation: toast-in 520ms var(--ease-spring) both;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(-14px) scale(0.97);
+    }
+}
+
+.alert-timer {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    background-color: var(--accent);
+    transform-origin: 0 50%;
+    animation: toast-timer 7s linear forwards;
+}
+
+.alert:hover .alert-timer {
+    animation-play-state: paused;
+}
+
+@keyframes toast-timer {
+    to { transform: scaleX(0); }
+}
+
+.alert.is-leaving {
+    animation: toast-out 320ms ease forwards;
+}
+
+@keyframes toast-out {
+    to {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   8. Animated confirm dialog (replaces window.confirm on [data-confirm] forms)
+   -------------------------------------------------------------------------- */
+.confirm-dialog {
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0;
+    width: min(440px, calc(100vw - 2rem));
+    background-color: var(--surface);
+    color: var(--text);
+    box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.6);
+}
+
+.confirm-dialog[open] {
+    animation: dialog-in 420ms var(--ease-spring);
+}
+
+.confirm-dialog::backdrop {
+    background-color: rgba(11, 11, 12, 0.6);
+    backdrop-filter: blur(6px);
+    animation: backdrop-in 260ms ease;
+}
+
+@keyframes dialog-in {
+    from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.94);
+    }
+}
+
+@keyframes backdrop-in {
+    from { opacity: 0; }
+}
+
+.confirm-dialog__icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    background-color: rgba(239, 68, 68, 0.14);
+    color: var(--danger);
+    animation: shake-soft 600ms 200ms ease both;
+}
+
+[data-theme="dark"] .confirm-dialog__icon {
+    color: #FCA5A5;
+}
+
+@keyframes shake-soft {
+    20%, 60% { transform: rotate(-8deg); }
+    40%, 80% { transform: rotate(8deg); }
+}
+
+/* --------------------------------------------------------------------------
+   9. Footer marquee + hero entrance stagger
+   -------------------------------------------------------------------------- */
+.city-marquee {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.city-marquee__track {
+    display: flex;
+    gap: 2.5rem;
+    width: max-content;
+    animation: marquee 38s linear infinite;
+}
+
+.city-marquee:hover .city-marquee__track {
+    animation-play-state: paused;
+}
+
+.city-marquee__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: -0.02em;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.city-marquee__item::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    box-shadow: 0 0 10px rgba(198, 244, 50, 0.6);
+}
+
+@keyframes marquee {
+    to { transform: translateX(-50%); }
+}
+
+.hero-section .col-lg-7 > *,
+.hero-section .col-lg-5,
+.hero-section .search-floating-card {
+    animation: hero-rise 900ms var(--ease-out-expo) both;
+}
+
+.hero-section .col-lg-7 > *:nth-child(2) { animation-delay: 80ms; }
+.hero-section .col-lg-7 > *:nth-child(3) { animation-delay: 160ms; }
+.hero-section .col-lg-7 > *:nth-child(4) { animation-delay: 240ms; }
+.hero-section .col-lg-5 { animation-delay: 200ms; }
+.hero-section .search-floating-card { animation-delay: 320ms; }
+
+@keyframes hero-rise {
+    from {
+        opacity: 0;
+        transform: translateY(26px);
+        filter: blur(6px);
+    }
+}
+
+/* Floating badges idle bob */
+.hero-floating-badge {
+    animation: bob 5s ease-in-out infinite;
+}
+
+.hero-floating-bottom {
+    animation-delay: -2.5s;
+}
+
+@keyframes bob {
+    50% { translate: 0 -8px; }
+}
+
+/* --------------------------------------------------------------------------
+   10. Reduced motion: kill everything decorative
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .aurora__blob,
+    .city-marquee__track,
+    .glow-border::before,
+    .search-floating-card::before,
+    .text-highlight-lime,
+    .hero-floating-badge {
+        animation: none !important;
+    }
+
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none !important;
+    }
+
+    .btn-lime,
+    .btn-brand {
+        transform: none !important;
+    }
+}

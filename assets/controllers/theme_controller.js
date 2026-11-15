@@ -35,14 +35,40 @@ export default class extends Controller {
         }
     }
 
-    toggle() {
+    toggle(event) {
         const nextTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
         try {
             localStorage.setItem('theme', nextTheme);
         } catch (_) {
             // Ignore storage errors in private browsing
         }
-        this.applyTheme(nextTheme, true);
+
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduceMotion || typeof document.startViewTransition !== 'function') {
+            this.applyTheme(nextTheme, true);
+            return;
+        }
+
+        // Circular reveal expanding from the toggle button (View Transitions API)
+        const rect = this.element.getBoundingClientRect();
+        const x = event && event.clientX ? event.clientX : rect.left + rect.width / 2;
+        const y = event && event.clientY ? event.clientY : rect.top + rect.height / 2;
+        const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+        const html = document.documentElement;
+
+        html.classList.add('theme-transition');
+        const transition = document.startViewTransition(() => this.applyTheme(nextTheme, true));
+
+        transition.ready
+            .then(() => {
+                html.animate(
+                    { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+                    { duration: 620, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', pseudoElement: '::view-transition-new(root)' }
+                );
+            })
+            .catch(() => {});
+
+        transition.finished.finally(() => html.classList.remove('theme-transition'));
     }
 
     resolveInitialTheme() {
