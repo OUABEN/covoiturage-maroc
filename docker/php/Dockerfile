@@ -6,6 +6,9 @@ RUN apk add --no-cache \
         unzip \
         icu-dev \
         libzip-dev \
+        $PHPIZE_DEPS \
+    && pecl install pcov \
+    && docker-php-ext-enable pcov \
     && docker-php-ext-configure intl \
     && docker-php-ext-install -j$(nproc) \
         pdo_mysql \

@@ -268,6 +268,14 @@ class DriverController extends AbstractController
         /** @var User $driver */
         $driver = $this->getUser();
 
+        $lastStop = $trip->getStops()->last();
+        $arrivalTime = $lastStop instanceof TripStop ? ($lastStop->getArrivalTime() ?? $lastStop->getDepartureTime()) : null;
+        if (null !== $arrivalTime && $arrivalTime > new \DateTimeImmutable()) {
+            $this->addFlash('danger', 'Impossible de marquer un trajet comme terminé avant son heure d\'arrivée prévue.');
+
+            return $this->redirectToRoute('app_my_trips');
+        }
+
         try {
             $tripService->complete($trip, $driver);
             $this->addFlash('success', 'Le trajet a été marqué comme terminé. Les avis croisés sont désormais ouverts.');
