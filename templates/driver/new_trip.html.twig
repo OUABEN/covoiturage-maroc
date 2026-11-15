@@ -3,180 +3,270 @@
 {% block title %}Publier un trajet — AtlasCovoit Maroc{% endblock %}
 
 {% block body %}
-<div class="row justify-content-center">
-    <div class="col-lg-9">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h1 class="h3 fw-bold mb-0">Publier un nouveau trajet</h1>
-            <a href="{{ path('app_my_trips') }}" class="btn btn-outline-secondary btn-sm">Retour à mes trajets</a>
+{% set cityOptionsHtml %}
+    {% for c in cities %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+{% endset %}
+
+<div class="page-hero">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <div class="eyebrow">Publication assistée par OSRM</div>
+            <h1 class="fw-extrabold mb-2">
+                Publier un <span class="text-highlight-lime">nouveau trajet</span> multi-étapes
+            </h1>
+            <p class="text-muted mb-0" style="max-width: 640px;">
+                Composez votre itinéraire étape par étape. Le tarif de chaque segment est automatiquement suggéré en temps réel via <code class="small">/api/route</code> (0,60 MAD/km arrondi aux 5 MAD) et reste librement modifiable.
+            </p>
         </div>
-
-        {% if vehicles is empty %}
-            <div class="alert alert-warning">
-                Vous devez d'abord ajouter un véhicule avant de publier un trajet.
-                <a href="{{ path('app_my_vehicles') }}" class="alert-link ms-1">Ajouter un véhicule</a>
-            </div>
-        {% else %}
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <form method="post" action="{{ path('app_trip_new') }}">
-                        <input type="hidden" name="_token" value="{{ csrf_token('publish_trip') }}">
-
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-7">
-                                <label for="vehicle_id" class="form-label fw-semibold">Véhicule</label>
-                                <select name="vehicle_id" id="vehicle_id" class="form-select" required>
-                                    {% for v in vehicles %}
-                                        <option value="{{ v.id }}">{{ v.brand }} {{ v.model }} ({{ v.color }} — max {{ v.seats }} places)</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-5">
-                                <label for="seats_total" class="form-label fw-semibold">Places mises en vente</label>
-                                <input type="number" name="seats_total" id="seats_total" class="form-control" min="1" max="9" value="3" required>
-                            </div>
-                        </div>
-
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h2 class="h5 fw-bold mb-0">Étapes du trajet (minimum 2)</h2>
-                            <button type="button" id="add-stop-btn" class="btn btn-outline-success btn-sm fw-semibold">
-                                <i class="bi bi-plus-lg me-1"></i>Ajouter une étape
-                            </button>
-                        </div>
-
-                        <div id="stops-container" class="vstack gap-3 mb-4">
-                            <div class="stop-row card bg-light border p-3">
-                                <div class="fw-bold small mb-2">Étape 1 (Départ)</div>
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <label class="form-label small">Ville</label>
-                                        <select name="stops[0][city_id]" class="form-select form-select-sm" required>
-                                            {% for c in cities %}
-                                                <option value="{{ c.id }}">{{ c.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small">Heure de départ</label>
-                                        <input type="datetime-local" name="stops[0][departure_time]" class="form-control form-control-sm" required>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small">Prix depuis étape précédente (MAD)</label>
-                                        <input type="number" step="0.01" name="stops[0][price_from_previous]" class="form-control form-control-sm" value="0.00" readonly>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="stop-row card bg-light border p-3">
-                                <div class="fw-bold small mb-2">Étape 2</div>
-                                <div class="row g-2">
-                                    <div class="col-md-3">
-                                        <label class="form-label small">Ville</label>
-                                        <select name="stops[1][city_id]" class="form-select form-select-sm" required>
-                                            {% for c in cities %}
-                                                <option value="{{ c.id }}" {{ loop.index == 2 ? 'selected' : '' }}>{{ c.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small">Heure d'arrivée</label>
-                                        <input type="datetime-local" name="stops[1][arrival_time]" class="form-control form-control-sm" required>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small">Heure de départ (si intermédiaire)</label>
-                                        <input type="datetime-local" name="stops[1][departure_time]" class="form-control form-control-sm">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small">Prix du segment (MAD)</label>
-                                        <input type="number" step="0.01" min="0.01" name="stops[1][price_from_previous]" class="form-control form-control-sm" value="100.00" required>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-brand w-100 py-2 fw-semibold">
-                            <i class="bi bi-send-check me-1"></i>Publier le trajet
-                        </button>
-                    </form>
-                </div>
-            </div>
-        {% endif %}
+        <a href="{{ path('app_my_trips') }}" class="btn btn-outline-light">
+            <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Retour à mes trajets
+        </a>
     </div>
 </div>
 
-{% block javascripts %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const container = document.getElementById('stops-container');
-    const addBtn = document.getElementById('add-stop-btn');
-    if (!container || !addBtn) return;
-
-    const cityOptions = `{% for c in cities %}<option value="{{ c.id }}">{{ c.name|e('js') }}</option>{% endfor %}`;
-
-    async function refreshSuggestedPrices() {
-        const rows = Array.from(container.querySelectorAll('.stop-row'));
-        for (let i = 1; i < rows.length; i++) {
-            const prevCitySelect = rows[i - 1].querySelector('select[name*="[city_id]"]');
-            const currCitySelect = rows[i].querySelector('select[name*="[city_id]"]');
-            const priceInput = rows[i].querySelector('input[name*="[price_from_previous]"]');
-            if (!prevCitySelect || !currCitySelect || !priceInput) continue;
-
-            const fromId = prevCitySelect.value;
-            const toId = currCitySelect.value;
-            if (!fromId || !toId || fromId === toId) continue;
-
-            try {
-                const resp = await fetch(`/api/route?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`);
-                if (!resp.ok) continue;
-                const data = await resp.json();
-                if (data.suggestedPrice) {
-                    priceInput.value = data.suggestedPrice;
-                    priceInput.title = `Distance estimée : ${data.distanceKm} km (~${data.durationMinutes} min) — Prix suggéré OSRM : ${data.suggestedPrice} MAD`;
-                }
-            } catch (_) {
-                // Keep manual price if endpoint unreachable
-            }
-        }
-    }
-
-    container.addEventListener('change', (e) => {
-        if (e.target && e.target.matches('select[name*="[city_id]"]')) {
-            refreshSuggestedPrices();
-        }
-    });
-
-    addBtn.addEventListener('click', () => {
-        const index = container.querySelectorAll('.stop-row').length;
-        const div = document.createElement('div');
-        div.className = 'stop-row card bg-light border p-3';
-        div.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-bold small">Étape ${index + 1}</span>
-                <button type="button" class="btn btn-outline-danger btn-sm py-0 remove-stop-btn">Retirer</button>
+{% if vehicles is empty %}
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__art" aria-hidden="true">
+                <i class="bi bi-car-front"></i>
             </div>
-            <div class="row g-2">
-                <div class="col-md-3">
-                    <label class="form-label small">Ville</label>
-                    <select name="stops[${index}][city_id]" class="form-select form-select-sm" required>${cityOptions}</select>
+            <h2 class="h5 fw-extrabold mb-1">Aucun véhicule enregistré</h2>
+            <p class="text-muted small mb-3">
+                Vous devez d'abord ajouter un véhicule à votre profil avant de pouvoir publier un trajet.
+            </p>
+            <a href="{{ path('app_my_vehicles') }}" class="btn btn-lime">
+                <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Ajouter un véhicule
+            </a>
+        </div>
+    </div>
+{% else %}
+    <div data-controller="trip-builder"
+         data-trip-builder-route-endpoint-value="{{ path('api_route_estimate') }}"
+         data-trip-builder-city-options-html-value="{{ cityOptionsHtml|e('html_attr') }}">
+
+        {# Visual 3-Step Stepper #}
+        <div class="builder-steps" aria-label="Étapes de publication">
+            <div class="builder-step is-current" data-trip-builder-target="stepIndicator">
+                <span class="builder-step__num">1</span>
+                <span>Véhicule &amp; Capacité</span>
+            </div>
+            <div class="builder-step" data-trip-builder-target="stepIndicator">
+                <span class="builder-step__num">2</span>
+                <span>Étapes &amp; Horaires</span>
+            </div>
+            <div class="builder-step" data-trip-builder-target="stepIndicator">
+                <span class="builder-step__num">3</span>
+                <span>Tarifs OSRM &amp; Publication</span>
+            </div>
+        </div>
+
+        <form method="post" action="{{ path('app_trip_new') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('publish_trip') }}">
+
+            <div class="row g-4">
+                {# Left Column: Form Steps #}
+                <div class="col-lg-8">
+                    {# Step 1 Card: Vehicle & Seats #}
+                    <div class="card mb-4 builder-section">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <span class="icon-chip" style="width: 36px; height: 36px; font-size: 1rem;">
+                                    <i class="bi bi-car-front-fill" aria-hidden="true"></i>
+                                </span>
+                                <div>
+                                    <h2 class="h5 fw-extrabold mb-0">1. Véhicule et nombre de places</h2>
+                                    <p class="small text-muted mb-0">La capacité vendue ne peut pas dépasser celle du véhicule choisi.</p>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label for="vehicle_id" class="form-label">Véhicule</label>
+                                    <select name="vehicle_id"
+                                            id="vehicle_id"
+                                            class="form-select"
+                                            required
+                                            data-trip-builder-target="vehicleSelect"
+                                            data-action="change->trip-builder#onVehicleChange">
+                                        {% for v in vehicles %}
+                                            <option value="{{ v.id }}" data-max-seats="{{ v.seats }}">
+                                                {{ v.brand }} {{ v.model }} ({{ v.color }} — max {{ v.seats }} places)
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label for="seats_total" class="form-label">Places mises en vente</label>
+                                    <input type="number"
+                                           name="seats_total"
+                                           id="seats_total"
+                                           class="form-control"
+                                           min="1"
+                                           max="9"
+                                           value="{{ min(3, vehicles|first.seats) }}"
+                                           required
+                                           data-trip-builder-target="seatsInput"
+                                           data-action="input->trip-builder#onFieldInput">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Step 2 & 3 Card: Dynamic Stops & OSRM Pricing #}
+                    <div class="card builder-section">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="icon-chip" style="width: 36px; height: 36px; font-size: 1rem;">
+                                        <i class="bi bi-signpost-split-fill" aria-hidden="true"></i>
+                                    </span>
+                                    <div>
+                                        <h2 class="h5 fw-extrabold mb-0">2. Étapes du trajet (minimum 2)</h2>
+                                        <p class="small text-muted mb-0">Horaires strictement croissants · Tarif par segment auto-calculé via OSRM</p>
+                                    </div>
+                                </div>
+                                <button type="button"
+                                        id="add-stop-btn"
+                                        class="btn btn-outline-light btn-sm"
+                                        data-action="click->trip-builder#addStop">
+                                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Ajouter une étape
+                                </button>
+                            </div>
+
+                            <div id="stops-container" class="stop-list mb-4" data-trip-builder-target="stopsContainer">
+                                {# Stop 0 (Departure) #}
+                                <div class="stop-row stop-item">
+                                    <div class="stop-item__num" data-stop-badge>1</div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-extrabold small" data-stop-title>Étape 1 (Départ)</span>
+                                        <span class="badge badge-lime small">Ville de départ</span>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Ville</label>
+                                            <select name="stops[0][city_id]"
+                                                    class="form-select form-select-sm"
+                                                    required
+                                                    data-action="change->trip-builder#onCityChange">
+                                                {% for c in cities %}
+                                                    <option value="{{ c.id }}">{{ c.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Heure de départ</label>
+                                            <input type="datetime-local"
+                                                   name="stops[0][departure_time]"
+                                                   class="form-control form-control-sm"
+                                                   required
+                                                   data-action="input->trip-builder#onFieldInput">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Prix depuis étape précédente (MAD)</label>
+                                            <input type="number"
+                                                   step="0.01"
+                                                   name="stops[0][price_from_previous]"
+                                                   class="form-control form-control-sm"
+                                                   value="0.00"
+                                                   readonly>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {# Stop 1 (Second stop / Arrival) #}
+                                <div class="stop-row stop-item">
+                                    <div class="stop-item__num" data-stop-badge>2</div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-extrabold small" data-stop-title>Étape 2</span>
+                                        <span class="badge badge-surface small">Arrêt ou terminus</span>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-md-3">
+                                            <label class="form-label small">Ville</label>
+                                            <select name="stops[1][city_id]"
+                                                    class="form-select form-select-sm"
+                                                    required
+                                                    data-action="change->trip-builder#onCityChange">
+                                                {% for c in cities %}
+                                                    <option value="{{ c.id }}" {{ loop.index == 2 ? 'selected' : '' }}>{{ c.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small">Heure d'arrivée</label>
+                                            <input type="datetime-local"
+                                                   name="stops[1][arrival_time]"
+                                                   class="form-control form-control-sm"
+                                                   required
+                                                   data-action="input->trip-builder#onFieldInput">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small">Heure de départ (si intermédiaire)</label>
+                                            <input type="datetime-local"
+                                                   name="stops[1][departure_time]"
+                                                   class="form-control form-control-sm"
+                                                   data-action="input->trip-builder#onFieldInput">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small">Prix du segment (MAD)</label>
+                                            <div class="price-input-wrap" data-price-wrap>
+                                                <input type="number"
+                                                       step="0.01"
+                                                       min="0.01"
+                                                       name="stops[1][price_from_previous]"
+                                                       class="form-control form-control-sm"
+                                                       value="100.00"
+                                                       required
+                                                       data-action="input->trip-builder#onFieldInput">
+                                            </div>
+                                            <div class="osrm-hint" data-osrm-hint>Tarif suggéré OSRM</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-lime w-100 py-3">
+                                <i class="bi bi-send-check-fill me-1" aria-hidden="true"></i>Publier le trajet
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label small">Heure d'arrivée</label>
-                    <input type="datetime-local" name="stops[${index}][arrival_time]" class="form-control form-control-sm" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small">Heure de départ (optionnel)</label>
-                    <input type="datetime-local" name="stops[${index}][departure_time]" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small">Prix du segment (MAD)</label>
-                    <input type="number" step="0.01" min="0.01" name="stops[${index}][price_from_previous]" class="form-control form-control-sm" value="80.00" required>
+
+                {# Right Column: Sticky Live Summary #}
+                <div class="col-lg-4">
+                    <div class="card sticky-top glow-border" style="top: 5.5rem;">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h2 class="h5 fw-extrabold mb-0">Aperçu en direct</h2>
+                                <span class="badge badge-lime" data-trip-builder-target="summaryStopsCount">2 étapes</span>
+                            </div>
+
+                            <div class="small text-muted text-uppercase fw-bold mb-2">Chaîne des étapes</div>
+                            <div class="trip-summary__chain p-3 rounded-3 border mb-3"
+                                 style="background-color: var(--surface-2);"
+                                 data-trip-builder-target="summaryChain">
+                            </div>
+
+                            <div class="p-3 rounded-3 border mb-3" style="background-color: var(--surface-2);">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small text-muted">Tarif trajet complet / passager</span>
+                                    <span class="summary-value" data-trip-builder-target="summaryPrice">100.00 MAD</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                    <span class="small fw-bold">Revenu max potentiel</span>
+                                    <span class="fs-5 fw-extrabold text-highlight-lime" data-trip-builder-target="summaryRevenue">300.00 MAD</span>
+                                </div>
+                            </div>
+
+                            <div class="small text-muted">
+                                <i class="bi bi-shield-check me-1" style="color: var(--accent);" aria-hidden="true"></i>
+                                Chaque segment intermédiaire pourra être réservé et revendu indépendamment sans surréservation.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        `;
-        div.querySelector('.remove-stop-btn').addEventListener('click', () => div.remove());
-        container.appendChild(div);
-        refreshSuggestedPrices();
-    });
-});
-</script>
-{% endblock %}
+        </form>
+    </div>
+{% endif %}
 {% endblock %}

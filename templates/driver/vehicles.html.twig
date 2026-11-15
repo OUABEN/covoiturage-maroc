@@ -3,65 +3,151 @@
 {% block title %}Mes véhicules — AtlasCovoit Maroc{% endblock %}
 
 {% block body %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 fw-bold mb-0">Mes véhicules</h1>
-    <a href="{{ path('app_my_trips') }}" class="btn btn-outline-secondary btn-sm">Retour à mes trajets</a>
+<div class="page-hero">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <div class="eyebrow">Flotte Conducteur</div>
+            <h1 class="fw-extrabold mb-2">
+                Mes <span class="text-highlight-lime">véhicules</span> enregistrés
+            </h1>
+            <p class="text-muted mb-0" style="max-width: 600px;">
+                Ajoutez vos véhicules et leur capacité maximale (1 à 9 places passagers) pour publier vos trajets en toute sécurité.
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ path('app_my_trips') }}" class="btn btn-outline-light">
+                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Retour à mes trajets
+            </a>
+            <a href="{{ path('app_trip_new') }}" class="btn btn-lime">
+                <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Publier un trajet
+            </a>
+        </div>
+    </div>
 </div>
 
 <div class="row g-4">
+    {# Left Column: Add Vehicle Form #}
     <div class="col-lg-5">
-        <div class="card border-0 shadow-sm">
+        <div class="card glow-border">
             <div class="card-body p-4">
-                <h2 class="h5 fw-bold mb-3">Ajouter un véhicule</h2>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="icon-chip" style="width: 38px; height: 38px;">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                    </span>
+                    <div>
+                        <h2 class="h5 fw-extrabold mb-0">Ajouter un véhicule</h2>
+                        <p class="small text-muted mb-0">Tous les champs sont requis</p>
+                    </div>
+                </div>
+
                 <form method="post" action="{{ path('app_my_vehicles') }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('manage_vehicle') }}">
+
                     <div class="mb-3">
-                        <label for="brand" class="form-label fw-semibold">Marque</label>
-                        <input type="text" name="brand" id="brand" class="form-control" placeholder="Ex. Dacia" required>
+                        <label for="brand" class="form-label">Marque</label>
+                        <input type="text" name="brand" id="brand" class="form-control" placeholder="Ex. Dacia, Renault, Peugeot…" required>
                     </div>
+
                     <div class="mb-3">
-                        <label for="model" class="form-label fw-semibold">Modèle</label>
-                        <input type="text" name="model" id="model" class="form-control" placeholder="Ex. Duster" required>
+                        <label for="model" class="form-label">Modèle</label>
+                        <input type="text" name="model" id="model" class="form-control" placeholder="Ex. Duster, Clio 5, 3008…" required>
                     </div>
+
                     <div class="mb-3">
-                        <label for="color" class="form-label fw-semibold">Couleur</label>
-                        <input type="text" name="color" id="color" class="form-control" placeholder="Ex. Gris" required>
+                        <label for="color" class="form-label">Couleur</label>
+                        <input type="text" name="color" id="color" class="form-control" placeholder="Ex. Gris, Blanc, Noir…" required>
+                        <div class="swatches" aria-label="Suggestions rapides de couleur">
+                            {% set colorPresets = [
+                                {name: 'Noir', hex: '#18181B'},
+                                {name: 'Blanc', hex: '#F4F4F5'},
+                                {name: 'Gris', hex: '#71717A'},
+                                {name: 'Argent', hex: '#A1A1AA'},
+                                {name: 'Bleu', hex: '#2563EB'},
+                                {name: 'Rouge', hex: '#DC2626'}
+                            ] %}
+                            {% for preset in colorPresets %}
+                                <button type="button"
+                                        class="swatch"
+                                        style="background-color: {{ preset.hex }};"
+                                        title="{{ preset.name }}"
+                                        aria-label="Choisir la couleur {{ preset.name }}"
+                                        onclick="document.getElementById('color').value='{{ preset.name }}'; this.parentElement.querySelectorAll('.swatch').forEach(s => s.classList.remove('is-active')); this.classList.add('is-active');">
+                                </button>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="seats" class="form-label fw-semibold">Nombre de places passagers</label>
+
+                    <div class="mb-4">
+                        <label for="seats" class="form-label">Nombre de places passagers (1 à 9)</label>
                         <input type="number" name="seats" id="seats" class="form-control" min="1" max="9" value="4" required>
                     </div>
-                    <button type="submit" class="btn btn-brand w-100 fw-semibold">Ajouter le véhicule</button>
+
+                    <button type="submit" class="btn btn-lime w-100 py-3">
+                        <i class="bi bi-car-front-fill me-1" aria-hidden="true"></i>Ajouter le véhicule
+                    </button>
                 </form>
             </div>
         </div>
     </div>
 
+    {# Right Column: Vehicles Grid #}
     <div class="col-lg-7">
-        <div class="card border-0 shadow-sm">
+        <div class="card">
             <div class="card-body p-4">
-                <h2 class="h5 fw-bold mb-3">Véhicules enregistrés ({{ vehicles|length }})</h2>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h5 fw-extrabold mb-0">Véhicules enregistrés</h2>
+                    <span class="badge badge-lime">{{ vehicles|length }} véhicule(s)</span>
+                </div>
+
                 {% if vehicles is empty %}
-                    <p class="text-muted mb-0">Aucun véhicule enregistré.</p>
+                    <div class="empty-state">
+                        <div class="empty-state__art" aria-hidden="true">
+                            <i class="bi bi-car-front"></i>
+                        </div>
+                        <h3 class="h6 fw-extrabold mb-1">Aucun véhicule enregistré</h3>
+                        <p class="text-muted small mb-0">
+                            Utilisez le formulaire ci-contre pour enregistrer votre premier véhicule.
+                        </p>
+                    </div>
                 {% else %}
-                    <div class="list-group list-group-flush">
+                    <div class="row g-3">
                         {% for v in vehicles %}
-                            <div class="list-group-item px-0 d-flex justify-content-between align-items-center gap-3">
-                                <div class="d-flex align-items-center gap-3">
-                                    {% include 'components/car_image.html.twig' with {
-                                        seats: v.seats,
-                                        label: v.brand ~ ' ' ~ v.model,
-                                        displayHeight: 44
-                                    } %}
+                            <div class="col-md-6">
+                                <div class="vehicle-card h-100 d-flex flex-column justify-content-between">
                                     <div>
-                                        <strong>{{ v.brand }} {{ v.model }}</strong>
-                                        <span class="text-muted small ms-2">({{ v.color }} &bull; {{ v.seats }} places)</span>
+                                        <div class="vehicle-card__art" aria-hidden="true">
+                                            <i class="bi bi-car-front-fill"></i>
+                                            <div class="vehicle-card__road"></div>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                            <div>
+                                                <strong class="fs-5 fw-extrabold d-block">{{ v.brand }} {{ v.model }}</strong>
+                                                <span class="text-muted small">Couleur : {{ v.color }}</span>
+                                            </div>
+                                            <span class="badge badge-lime">{{ v.seats }} places</span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <div class="small text-muted mb-1">Capacité passagers</div>
+                                            <div class="seat-dots" aria-hidden="true">
+                                                {% for i in 1..v.seats %}
+                                                    <span></span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    <form method="post"
+                                          action="{{ path('app_vehicle_delete', {id: v.id}) }}"
+                                          data-confirm="Supprimer le véhicule {{ v.brand }} {{ v.model }} ?"
+                                          data-confirm-label="Supprimer">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete_vehicle_' ~ v.id) }}">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                            <i class="bi bi-trash3 me-1" aria-hidden="true"></i>Supprimer
+                                        </button>
+                                    </form>
                                 </div>
-                                <form method="post" action="{{ path('app_vehicle_delete', {id: v.id}) }}">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('delete_vehicle_' ~ v.id) }}">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm">Supprimer</button>
-                                </form>
                             </div>
                         {% endfor %}
                     </div>
