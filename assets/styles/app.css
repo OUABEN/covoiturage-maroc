@@ -636,89 +636,91 @@ a:hover {
     animation: skeletonShimmer 1.4s ease-in-out infinite;
 }
 
-/* Vertical Timeline on Trip Detail Page */
-.trip-vertical-timeline {
+/* Vertical Timeline for Trip Detail Stops */
+.timeline-vertical {
     position: relative;
     padding-left: 2.25rem;
 }
 
-.trip-vertical-timeline::before {
+.timeline-vertical::before {
     content: '';
     position: absolute;
     top: 1.25rem;
     bottom: 1.25rem;
     left: 0.85rem;
-    width: 2px;
-    background-color: var(--border);
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent) 0%, var(--border) 50%, var(--accent) 100%);
+    border-radius: 999px;
 }
 
-.timeline-step {
+.timeline-stop-item {
     position: relative;
-    padding: 1rem 1.25rem;
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    background-color: var(--surface-2);
-    margin-bottom: 0.85rem;
-    transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+    padding-bottom: 1.5rem;
 }
 
-.timeline-step:last-child {
-    margin-bottom: 0;
+.timeline-stop-item:last-child {
+    padding-bottom: 0;
 }
 
-.timeline-step.is-active-portion {
-    border-color: var(--accent);
-    background-color: var(--surface);
-    box-shadow: var(--shadow-lime);
-}
-
-.timeline-node {
+.timeline-marker {
     position: absolute;
-    left: -1.95rem;
-    top: 1.25rem;
-    width: 24px;
-    height: 24px;
+    left: -2.25rem;
+    top: 0.2rem;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background-color: var(--surface-2);
-    border: 2px solid var(--border);
-    color: var(--muted);
-    font-size: 0.72rem;
+    border: 2px solid var(--accent);
+    color: var(--text);
     font-weight: 800;
+    font-size: 0.8rem;
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2;
-    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    box-shadow: 0 0 0 4px var(--surface);
 }
 
-.timeline-step.is-active-portion .timeline-node {
+.timeline-marker-endpoint {
     background-color: var(--accent);
-    border-color: var(--accent);
     color: var(--accent-contrast);
 }
 
-/* Leaflet Map Container & Markers */
-.trip-map-wrapper {
-    position: relative;
-    border-radius: var(--radius-card);
+.timeline-stop-card {
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.timeline-stop-card:hover {
+    border-color: var(--accent);
+}
+
+/* Leaflet Map & Custom Markers */
+.trip-map-container {
+    width: 100%;
+    height: 360px;
+    border-radius: 14px;
     overflow: hidden;
     border: 1px solid var(--border);
     background-color: var(--surface-2);
-    height: 360px;
+    z-index: 1;
 }
 
-.leaflet-stop-marker {
-    background-color: var(--accent);
-    color: var(--accent-contrast);
-    border: 2px solid #0B0B0C;
-    border-radius: 50%;
-    width: 28px !important;
-    height: 28px !important;
+.leaflet-stop-pin {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #C6F432;
+    color: #0B0B0C;
+    border: 2px solid #0B0B0C;
     font-weight: 800;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 
@@ -730,7 +732,7 @@ a:hover {
     box-shadow: var(--shadow-soft) !important;
 }
 
-/* Auth Split-Screen Layout */
+/* Split-Screen Authentication Layout */
 .auth-split-card {
     border-radius: 20px;
     overflow: hidden;
@@ -741,50 +743,62 @@ a:hover {
 
 .auth-visual-panel {
     position: relative;
-    background: linear-gradient(155deg, #0B0B0C 0%, #141416 55%, #1C1C1F 100%);
+    background:
+        radial-gradient(circle at 80% 20%, rgba(198, 244, 50, 0.22), transparent 50%),
+        linear-gradient(155deg, #0B0B0C 0%, #141416 65%, #1C1C1F 100%);
     color: #FFFFFF;
-    padding: 2.5rem;
+    padding: 2.75rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    overflow: hidden;
+    border-right: 1px solid var(--border);
 }
 
-.auth-visual-panel::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 85% 20%, rgba(198, 244, 50, 0.22), transparent 55%);
-    pointer-events: none;
+.auth-visual-panel h2,
+.auth-visual-panel h3,
+.auth-visual-panel p {
+    color: #FFFFFF;
 }
 
-/* Symfony Form Error Lists */
-form ul {
-    list-style: none;
-    padding-left: 0;
-    margin-top: 0.35rem;
-    margin-bottom: 0;
+.auth-form-panel {
+    padding: 2.5rem;
+    background-color: var(--surface);
 }
 
-form ul li,
-.invalid-feedback {
-    color: var(--danger);
+/* Form Validation Errors (Symfony form_errors) */
+.invalid-feedback,
+.form-error-list,
+form ul li {
+    color: var(--danger) !important;
     font-size: 0.82rem;
     font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
+    margin-top: 0.35rem;
+    list-style: none;
 }
 
-[data-theme="dark"] form ul li,
-[data-theme="dark"] .invalid-feedback {
-    color: #FCA5A5;
+[data-theme="dark"] .invalid-feedback,
+[data-theme="dark"] .form-error-list,
+[data-theme="dark"] form ul li {
+    color: #FCA5A5 !important;
+}
+
+form ul {
+    padding-left: 0;
+    margin-bottom: 0;
 }
 
 @media (max-width: 991.98px) {
     .hero-3d-stage,
     .hero-floating-badge {
         transform: none !important;
+    }
+    .auth-visual-panel {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 2rem;
+    }
+    .auth-form-panel {
+        padding: 1.75rem;
     }
 }
 
