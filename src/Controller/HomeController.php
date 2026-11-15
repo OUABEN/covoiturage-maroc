@@ -66,11 +66,7 @@ class HomeController extends AbstractController
             }
         }
 
-        $popularTrips = $tripRepository->findBy(
-            ['status' => TripStatus::PUBLISHED],
-            ['createdAt' => 'DESC'],
-            3
-        );
+        $popularTrips = $tripRepository->findUpcomingPopular(6);
 
         return $this->render('home/index.html.twig', [
             'cities' => $cities,

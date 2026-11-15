@@ -371,7 +371,7 @@
                 {% for trip in popularTrips %}
                     {% set stops = trip.stops %}
                     {% if stops|length >= 2 %}
-                        <div class="col-md-4" data-controller="reveal" data-reveal-delay-value="{{ loop.index0 * 90 }}">
+                        <div class="col-12 col-md-6 col-lg-4" data-controller="reveal" data-reveal-delay-value="{{ loop.index0 * 90 }}">
                             <div class="card h-100 card-interactive" data-controller="tilt">
                                 <div class="card-body p-4 d-flex flex-column justify-content-between">
                                     <div>
@@ -398,8 +398,19 @@
                                         </p>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center pt-3 border-top">
-                                        <div class="small text-muted">
-                                            Conducteur : <strong>{{ trip.driver.firstName }}</strong>
+                                        <div>
+                                            <div class="small text-muted">
+                                                Conducteur : <strong>{{ trip.driver.firstName }} {{ trip.driver.lastName|slice(0, 1)|upper }}.</strong>
+                                            </div>
+                                            <div class="small text-muted mt-1">
+                                                {% set minPrice = null %}
+                                                {% for s in stops %}
+                                                    {% if loop.index0 > 0 and (minPrice is null or s.priceFromPrevious < minPrice) %}
+                                                        {% set minPrice = s.priceFromPrevious %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                                À partir de <span class="fw-bold text-highlight-lime">{{ minPrice ?? '0.00' }} MAD</span>
+                                            </div>
                                         </div>
                                         <a href="{{ path('app_trip_show', {id: trip.id}) }}" class="btn btn-outline-light btn-sm">
                                             Détails <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
@@ -416,7 +427,7 @@
                     {'city': 'Essaouira', 'tag': 'Route Côtière', 'route': 'Agadir → Essaouira → Safi → El Jadida', 'price': '70 MAD'},
                     {'city': 'Fès', 'tag': 'Axe Impérial', 'route': 'Marrakech → Casablanca → Rabat → Fès', 'price': '50 MAD'}
                 ] %}
-                    <div class="col-md-4" data-controller="reveal" data-reveal-delay-value="{{ loop.index0 * 90 }}">
+                    <div class="col-12 col-md-6 col-lg-4" data-controller="reveal" data-reveal-delay-value="{{ loop.index0 * 90 }}">
                         <div class="card h-100 card-interactive" data-controller="tilt">
                             <div class="card-body p-4">
                                 <div class="mb-3">

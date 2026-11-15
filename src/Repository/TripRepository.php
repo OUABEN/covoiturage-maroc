@@ -12,6 +12,7 @@ use App\Enum\TripStatus;
 use App\Service\AvailabilityService;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Query\Expr\Join;
+use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -108,5 +109,38 @@ class TripRepository extends ServiceEntityRepository
         }
 
         return $results;
+    }
+
+    /**
+     * Retourne les $limit prochains trajets PUBLISHED dont le départ est futur,
+     * triés par date de départ croissante puis places restantes, en une seule requête eager (sans N+1).
+     *
+     * @return list<Trip>
+     */
+    public function findUpcomingPopular(int $limit = 6): array
+    {
+        $now = new \DateTimeImmutable();
+
+        $qb = $this->createQueryBuilder('t')
+            ->innerJoin('t.stops', 'firstStop', Join::WITH, 'firstStop.stopOrder = 1')
+            ->leftJoin('t.stops', 'allStops')
+            ->leftJoin('allStops.city', 'c')
+            ->leftJoin('t.driver', 'd')
+            ->leftJoin('t.vehicle', 'v')
+            ->addSelect('allStops', 'c', 'd', 'v')
+            ->where('t.status = :status')
+            ->andWhere('firstStop.departureTime >= :now')
+            ->setParameter('status', TripStatus::PUBLISHED)
+            ->setParameter('now', $now)
+            ->orderBy('firstStop.departureTime', 'ASC')
+            ->addOrderBy('t.seatsTotal', 'DESC')
+            ->setMaxResults($limit);
+
+        $paginator = new Paginator($qb->getQuery(), fetchJoinCollection: true);
+
+        /** @var list<Trip> $trips */
+        $trips = iterator_to_array($paginator);
+
+        return $trips;
     }
 }
