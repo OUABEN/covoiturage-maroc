@@ -3,120 +3,157 @@
 {% block title %}Inscription — AtlasCovoit Maroc{% endblock %}
 
 {% block body %}
-<div class="row justify-content-center py-3 py-lg-4">
+<div class="row justify-content-center py-3">
     <div class="col-xl-10">
         <div class="auth-split-card">
             <div class="row g-0">
-                {# Left Dark Visual Showcase Panel #}
+                {# Left Dark Visual Panel #}
                 <div class="col-lg-5 auth-visual-panel">
-                    <div class="position-relative z-1">
+                    <div>
                         <span class="badge badge-lime mb-3">
-                            <i class="bi bi-stars"></i>Compte double rôle
+                            <i class="bi bi-stars me-1" aria-hidden="true"></i>Inscription gratuite
                         </span>
-                        <h2 class="h3 fw-bold text-white mb-2">
-                            Passager aujourd'hui, <span class="text-highlight-lime">conducteur</span> demain.
+                        <h2 class="h3 fw-extrabold mb-3">
+                            Rejoignez la communauté <span class="text-highlight-lime">AtlasCovoit</span>
                         </h2>
                         <p class="small mb-4" style="color: #A1A1AA;">
-                            Créez votre compte unique pour réserver vos trajets à la portion ou partager les frais de vos déplacements régionaux au Maroc.
+                            Un seul profil vérifié pour voyager léger comme passager ET partager vos frais de route comme conducteur.
                         </p>
 
                         <div class="mb-4">
-                            {{ include('components/city_image.html.twig', {
+                            {% include 'components/city_image.html.twig' with {
                                 cityName: 'Agadir',
-                                height: 160
-                            }) }}
+                                height: 155,
+                                class: 'w-100 object-fit-cover d-block'
+                            } %}
+                        </div>
+
+                        <div class="d-grid gap-3 small">
+                            <div class="d-flex align-items-start gap-2">
+                                <span class="badge badge-lime rounded-circle p-1 mt-1" aria-hidden="true">
+                                    <i class="bi bi-person-check-fill"></i>
+                                </span>
+                                <div>
+                                    <strong class="d-block text-white">Profil conducteur &amp; passager unifié</strong>
+                                    <span style="color: #A1A1AA;">Publiez vos véhicules ou réservez une étape en 2 clics.</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-start gap-2">
+                                <span class="badge badge-lime rounded-circle p-1 mt-1" aria-hidden="true">
+                                    <i class="bi bi-shield-check"></i>
+                                </span>
+                                <div>
+                                    <strong class="d-block text-white">Confidentialité respectée</strong>
+                                    <span style="color: #A1A1AA;">Votre e-mail et votre téléphone ne sont jamais exposés publiquement.</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="position-relative z-1 d-grid gap-2">
-                        <div class="p-3 rounded-4 border" style="background-color: rgba(20, 20, 22, 0.85); border-color: #2A2A2E !important;">
-                            <div class="d-flex align-items-center gap-2 mb-1">
-                                <span class="badge badge-lime">
-                                    <i class="bi bi-shield-lock-fill"></i>Confidentialité
-                                </span>
-                                <strong class="small text-white">Coordonnées protégées</strong>
-                            </div>
-                            <div class="small" style="color: #A1A1AA;">
-                                Votre e-mail et votre téléphone ne sont jamais exposés sur votre profil public.
-                            </div>
+                    <div class="pt-4 mt-4 border-top" style="border-color: #2A2A2E !important;">
+                        <div class="small" style="color: #A1A1AA;">
+                            <i class="bi bi-lock-fill me-1" style="color: var(--accent);" aria-hidden="true"></i>
+                            Mot de passe haché (bcrypt/argon2i) · Protection CSRF active
                         </div>
                     </div>
                 </div>
 
-                {# Right Form Panel #}
-                <div class="col-lg-7 p-4 p-md-5 d-flex flex-column justify-content-center">
+                {# Right Form Panel with Field-by-Field Validation #}
+                <div class="col-lg-7 auth-form-panel">
                     <div class="mb-4">
-                        <h1 class="h3 fw-bold mb-1">Créer un compte</h1>
+                        <h1 class="h3 fw-extrabold mb-1">Créer un compte</h1>
                         <p class="text-muted small mb-0">
-                            Un seul compte vous permet de réserver des places comme passager et de publier vos propres trajets comme conducteur.
+                            Remplissez vos informations ci-dessous. Tous les champs sont requis.
                         </p>
                     </div>
 
                     {{ form_start(registrationForm, {'attr': {'novalidate': 'novalidate'}}) }}
                         {% if not registrationForm.vars.valid %}
                             <div class="alert alert-danger small mb-3" role="alert">
-                                <i class="bi bi-exclamation-circle-fill me-1"></i>
-                                Veuillez corriger les champs signalés ci-dessous.
+                                <i class="bi bi-exclamation-octagon-fill me-1" aria-hidden="true"></i>
+                                Veuillez corriger les erreurs signalées sous les champs du formulaire.
                             </div>
                         {% endif %}
 
                         <div class="row g-3">
                             <div class="col-sm-6">
                                 {{ form_label(registrationForm.firstName, null, {'label_attr': {'class': 'form-label'}}) }}
-                                {{ form_widget(registrationForm.firstName, {'attr': {
-                                    'class': 'form-control' ~ (registrationForm.firstName.vars.valid ? '' : ' is-invalid'),
-                                    'placeholder': 'Ex. Youssef'
-                                }}) }}
-                                {{ form_errors(registrationForm.firstName) }}
+                                {{ form_widget(registrationForm.firstName, {
+                                    'attr': {
+                                        'class': 'form-control' ~ (registrationForm.firstName.vars.errors|length > 0 ? ' is-invalid' : ''),
+                                        'placeholder': 'Ex. Amina'
+                                    }
+                                }) }}
+                                <div class="form-error-list">
+                                    {{ form_errors(registrationForm.firstName) }}
+                                </div>
                             </div>
+
                             <div class="col-sm-6">
                                 {{ form_label(registrationForm.lastName, null, {'label_attr': {'class': 'form-label'}}) }}
-                                {{ form_widget(registrationForm.lastName, {'attr': {
-                                    'class': 'form-control' ~ (registrationForm.lastName.vars.valid ? '' : ' is-invalid'),
-                                    'placeholder': 'Ex. Benali'
-                                }}) }}
-                                {{ form_errors(registrationForm.lastName) }}
+                                {{ form_widget(registrationForm.lastName, {
+                                    'attr': {
+                                        'class': 'form-control' ~ (registrationForm.lastName.vars.errors|length > 0 ? ' is-invalid' : ''),
+                                        'placeholder': 'Ex. El Fassi'
+                                    }
+                                }) }}
+                                <div class="form-error-list">
+                                    {{ form_errors(registrationForm.lastName) }}
+                                </div>
                             </div>
+
                             <div class="col-12">
                                 {{ form_label(registrationForm.email, null, {'label_attr': {'class': 'form-label'}}) }}
-                                {{ form_widget(registrationForm.email, {'attr': {
-                                    'class': 'form-control' ~ (registrationForm.email.vars.valid ? '' : ' is-invalid'),
-                                    'placeholder': 'prenom.nom@covoiturage.ma'
-                                }}) }}
-                                {{ form_errors(registrationForm.email) }}
+                                {{ form_widget(registrationForm.email, {
+                                    'attr': {
+                                        'class': 'form-control' ~ (registrationForm.email.vars.errors|length > 0 ? ' is-invalid' : ''),
+                                        'placeholder': 'amina.elfassi@covoiturage.ma'
+                                    }
+                                }) }}
+                                <div class="form-error-list">
+                                    {{ form_errors(registrationForm.email) }}
+                                </div>
                             </div>
+
                             <div class="col-12">
                                 {{ form_label(registrationForm.phone, null, {'label_attr': {'class': 'form-label'}}) }}
-                                {{ form_widget(registrationForm.phone, {'attr': {
-                                    'class': 'form-control' ~ (registrationForm.phone.vars.valid ? '' : ' is-invalid'),
-                                    'placeholder': '+212 6 00 00 00 00'
-                                }}) }}
-                                {{ form_errors(registrationForm.phone) }}
+                                {{ form_widget(registrationForm.phone, {
+                                    'attr': {
+                                        'class': 'form-control' ~ (registrationForm.phone.vars.errors|length > 0 ? ' is-invalid' : ''),
+                                        'placeholder': '+212 6 61 00 11 22'
+                                    }
+                                }) }}
+                                <div class="form-error-list">
+                                    {{ form_errors(registrationForm.phone) }}
+                                </div>
                             </div>
+
                             <div class="col-12">
                                 {{ form_label(registrationForm.plainPassword, null, {'label_attr': {'class': 'form-label'}}) }}
-                                {{ form_widget(registrationForm.plainPassword, {'attr': {
-                                    'class': 'form-control' ~ (registrationForm.plainPassword.vars.valid ? '' : ' is-invalid'),
-                                    'placeholder': 'Minimum 8 caractères'
-                                }}) }}
+                                {{ form_widget(registrationForm.plainPassword, {
+                                    'attr': {
+                                        'class': 'form-control' ~ (registrationForm.plainPassword.vars.errors|length > 0 ? ' is-invalid' : ''),
+                                        'placeholder': 'Minimum 8 caractères'
+                                    }
+                                }) }}
                                 <div class="form-text small text-muted mt-1">
-                                    <i class="bi bi-key me-1"></i>Au moins 8 caractères requis.
+                                    <i class="bi bi-info-circle me-1" aria-hidden="true"></i>8 caractères minimum requis.
                                 </div>
-                                {{ form_errors(registrationForm.plainPassword) }}
+                                <div class="form-error-list">
+                                    {{ form_errors(registrationForm.plainPassword) }}
+                                </div>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-lime w-100 py-2 fw-bold mt-4">
-                            <i class="bi bi-person-check me-1"></i>S'inscrire
+                        <button type="submit" class="btn btn-lime w-100 py-3 mt-4">
+                            <i class="bi bi-person-check-fill me-1" aria-hidden="true"></i>S'inscrire
                         </button>
                     {{ form_end(registrationForm) }}
 
                     <hr class="my-4">
                     <p class="text-center small mb-0">
-                        Déjà inscrit ?
-                        <a href="{{ path('app_login') }}" class="fw-bold text-decoration-none ms-1">
-                            Se connecter <i class="bi bi-arrow-right"></i>
-                        </a>
+                        Vous avez déjà un compte ?
+                        <a href="{{ path('app_login') }}" class="fw-extrabold text-decoration-underline ms-1">Se connecter</a>
                     </p>
                 </div>
             </div>
