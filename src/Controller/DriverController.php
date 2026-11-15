@@ -37,17 +37,29 @@ class DriverController extends AbstractController
         /** @var User $driver */
         $driver = $this->getUser();
 
-        $allTrips = $tripRepository->findBy(
-            ['driver' => $driver],
-            ['createdAt' => 'DESC']
-        );
+        $allTrips = $tripRepository->findByDriverWithDetails($driver);
+        $bookingStats = $tripRepository->getDriverBookingAggregates($driver);
 
+        $now = new \DateTimeImmutable();
         $publishedTrips = [];
         $historyTrips = [];
+        $upcomingTripsCount = 0;
+        $nextDepartureTrip = null;
+        $nextDepartureTime = null;
 
         foreach ($allTrips as $trip) {
             if (TripStatus::PUBLISHED === $trip->getStatus()) {
                 $publishedTrips[] = $trip;
+
+                $firstStop = $trip->getStops()->first();
+                $depTime = $firstStop instanceof TripStop ? ($firstStop->getDepartureTime() ?? $firstStop->getArrivalTime()) : null;
+                if (null !== $depTime && $depTime > $now) {
+                    ++$upcomingTripsCount;
+                    if (null === $nextDepartureTime || $depTime < $nextDepartureTime) {
+                        $nextDepartureTime = $depTime;
+                        $nextDepartureTrip = $trip;
+                    }
+                }
             } else {
                 $historyTrips[] = $trip;
             }
@@ -59,6 +71,10 @@ class DriverController extends AbstractController
             'publishedTrips' => $publishedTrips,
             'historyTrips' => $historyTrips,
             'vehicles' => $vehicles,
+            'upcomingTripsCount' => $upcomingTripsCount,
+            'passengersTransported' => $bookingStats['passengersTransported'],
+            'estimatedRevenue' => $bookingStats['estimatedRevenue'],
+            'nextDepartureTrip' => $nextDepartureTrip,
         ]);
     }
 
@@ -70,12 +86,13 @@ class DriverController extends AbstractController
     ): Response {
         /** @var User $user */
         $user = $this->getUser();
+        $redirectTarget = (string) ($request->request->get('_redirect') ?? $request->query->get('redirect', ''));
 
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('manage_vehicle', (string) $request->request->get('_token'))) {
                 $this->addFlash('danger', 'Jeton CSRF invalide.');
 
-                return $this->redirectToRoute('app_my_vehicles');
+                return $this->redirectToRoute('trip_new' === $redirectTarget ? 'app_trip_new' : 'app_my_vehicles');
             }
 
             $brand = trim((string) $request->request->get('brand', ''));
@@ -83,10 +100,10 @@ class DriverController extends AbstractController
             $color = trim((string) $request->request->get('color', ''));
             $seats = $request->request->getInt('seats', 4);
 
-            if ('' === $brand || '' === $model || '' === $color || $seats < 1 || $seats > 9) {
-                $this->addFlash('danger', 'Veuillez remplir tous les champs du véhicule (1 à 9 places).');
+            if ('' === $brand || '' === $model || '' === $color || $seats < 1 || $seats > 8) {
+                $this->addFlash('danger', 'Veuillez remplir tous les champs du véhicule (1 à 8 places).');
 
-                return $this->redirectToRoute('app_my_vehicles');
+                return $this->redirectToRoute('trip_new' === $redirectTarget ? 'app_trip_new' : 'app_my_vehicles');
             }
 
             $vehicle = (new Vehicle())
@@ -101,11 +118,16 @@ class DriverController extends AbstractController
 
             $this->addFlash('success', sprintf('Véhicule %s %s ajouté avec succès.', $brand, $model));
 
+            if ('trip_new' === $redirectTarget) {
+                return $this->redirectToRoute('app_trip_new');
+            }
+
             return $this->redirectToRoute('app_my_vehicles');
         }
 
         return $this->render('driver/vehicles.html.twig', [
             'vehicles' => $vehicleRepository->findBy(['owner' => $user], ['id' => 'DESC']),
+            'redirectTarget' => $redirectTarget,
         ]);
     }
 
@@ -169,6 +191,8 @@ class DriverController extends AbstractController
                 return $this->redirectToRoute('app_trip_new');
             }
 
+            $this->denyAccessUnlessGranted(VehicleVoter::MANAGE, $vehicle);
+
             $trip = (new Trip())
                 ->setDriver($driver)
                 ->setVehicle($vehicle)
@@ -186,13 +210,32 @@ class DriverController extends AbstractController
 
                 $arrStr = trim((string) ($stopRow['arrival_time'] ?? ''));
                 $depStr = trim((string) ($stopRow['departure_time'] ?? ''));
-                $price = 0 === $idx ? '0.00' : number_format((float) ($stopRow['price_from_previous'] ?? '0'), 2, '.', '');
+
+                try {
+                    $arrivalTime = '' !== $arrStr ? new \DateTimeImmutable($arrStr) : null;
+                    $departureTime = '' !== $depStr ? new \DateTimeImmutable($depStr) : null;
+                } catch (\Throwable) {
+                    $this->addFlash('danger', sprintf('Format de date/heure invalide à l\'étape #%d.', $idx + 1));
+
+                    return $this->redirectToRoute('app_trip_new');
+                }
+
+                $rawPrice = trim((string) ($stopRow['price_from_previous'] ?? '0'));
+                if (0 === $idx) {
+                    $price = '0.00';
+                } elseif (!is_numeric($rawPrice) || bccomp($rawPrice, '0.01', 2) < 0) {
+                    $this->addFlash('danger', sprintf('Le prix du segment à l\'étape #%d doit être positif.', $idx + 1));
+
+                    return $this->redirectToRoute('app_trip_new');
+                } else {
+                    $price = bcadd($rawPrice, '0', 2);
+                }
 
                 $stop = (new TripStop())
                     ->setCity($city)
                     ->setStopOrder($idx)
-                    ->setArrivalTime('' !== $arrStr ? new \DateTimeImmutable($arrStr) : null)
-                    ->setDepartureTime('' !== $depStr ? new \DateTimeImmutable($depStr) : null)
+                    ->setArrivalTime($arrivalTime)
+                    ->setDepartureTime($departureTime)
                     ->setPriceFromPrevious($price);
 
                 $trip->addStop($stop);

@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Dto\TripSearchResult;
+use App\Entity\Booking;
 use App\Entity\City;
 use App\Entity\Trip;
 use App\Entity\TripStop;
+use App\Entity\User;
+use App\Enum\BookingStatus;
 use App\Enum\TripStatus;
 use App\Service\AvailabilityService;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -232,5 +235,68 @@ class TripRepository extends ServiceEntityRepository
         $trips = iterator_to_array($paginator);
 
         return $trips;
+    }
+
+    /**
+     * Charge tous les trajets d'un conducteur avec ses arrêts, villes, véhicule,
+     * réservations et passagers en une seule requête (sans N+1).
+     *
+     * @return list<Trip>
+     */
+    public function findByDriverWithDetails(User $driver): array
+    {
+        /** @var list<Trip> $trips */
+        $trips = $this->createQueryBuilder('t')
+            ->leftJoin('t.vehicle', 'v')
+            ->leftJoin('t.stops', 's')
+            ->leftJoin('s.city', 'sc')
+            ->leftJoin('t.bookings', 'b')
+            ->leftJoin('b.passenger', 'p')
+            ->leftJoin('b.fromStop', 'fs')
+            ->leftJoin('fs.city', 'fsc')
+            ->leftJoin('b.toStop', 'ts')
+            ->leftJoin('ts.city', 'tsc')
+            ->addSelect('v', 's', 'sc', 'b', 'p', 'fs', 'fsc', 'ts', 'tsc')
+            ->where('t.driver = :driver')
+            ->setParameter('driver', $driver)
+            ->orderBy('t.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        return $trips;
+    }
+
+    /**
+     * Agrège via une requête dédiée les places confirmées et le revenu exact en bcmath
+     * sur les réservations CONFIRMED des trajets d'un conducteur.
+     *
+     * @return array{passengersTransported: int, estimatedRevenue: string}
+     */
+    public function getDriverBookingAggregates(User $driver): array
+    {
+        /** @var list<array{seats: int, price: string}> $rows */
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('b.seats AS seats', 'b.price AS price')
+            ->from(Booking::class, 'b')
+            ->innerJoin('b.trip', 't')
+            ->where('t.driver = :driver')
+            ->andWhere('b.status = :confirmed')
+            ->setParameter('driver', $driver)
+            ->setParameter('confirmed', BookingStatus::CONFIRMED)
+            ->getQuery()
+            ->getArrayResult();
+
+        $passengersTransported = 0;
+        $estimatedRevenue = '0.00';
+
+        foreach ($rows as $row) {
+            $passengersTransported += (int) $row['seats'];
+            $estimatedRevenue = bcadd($estimatedRevenue, (string) $row['price'], 2);
+        }
+
+        return [
+            'passengersTransported' => $passengersTransported,
+            'estimatedRevenue' => $estimatedRevenue,
+        ];
     }
 }

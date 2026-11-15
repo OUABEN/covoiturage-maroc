@@ -3,17 +3,7 @@
 {% block title %}Espace Conducteur — Mes trajets — AtlasCovoit Maroc{% endblock %}
 
 {% block body %}
-{# Compute Driver KPIs (total confirmed passengers & total revenue across trips) #}
-{% set totalConfirmedPassengers = 0 %}
-{% set totalEstimatedRevenue = 0 %}
-{% for t in publishedTrips|merge(historyTrips) %}
-    {% for b in t.bookings %}
-        {% if b.status.value == 'CONFIRMED' %}
-            {% set totalConfirmedPassengers = totalConfirmedPassengers + b.seats %}
-            {% set totalEstimatedRevenue = totalEstimatedRevenue + b.price %}
-        {% endif %}
-    {% endfor %}
-{% endfor %}
+{% set hasAnyTrip = publishedTrips is not empty or historyTrips is not empty %}
 
 <div class="page-hero">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
@@ -31,21 +21,21 @@
                 <i class="bi bi-car-front-fill me-1" aria-hidden="true"></i>Mes véhicules ({{ vehicles|length }})
             </a>
             <a href="{{ path('app_trip_new') }}" class="btn btn-lime">
-                <i class="bi bi-plus-circle-fill me-1" aria-hidden="true"></i>Publier un nouveau trajet
+                <i class="bi bi-plus-circle-fill me-1" aria-hidden="true"></i>Publier un trajet
             </a>
         </div>
     </div>
 
-    {# KPI Row with Animated Counters #}
+    {# KPI Row with Aggregated Stats (bcmath) & Animated Counters #}
     <div class="row g-3 mt-3">
         <div class="col-6 col-lg-3">
             <div class="kpi-card">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="kpi-card__label">Trajets actifs</span>
+                    <span class="kpi-card__label">Trajets à venir</span>
                     <span class="icon-chip"><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span>
                 </div>
-                <div class="kpi-card__value" data-controller="counter" data-counter-target-value="{{ publishedTrips|length }}">
-                    {{ publishedTrips|length }}
+                <div class="kpi-card__value" data-controller="counter" data-counter-target-value="{{ upcomingTripsCount }}">
+                    {{ upcomingTripsCount }}
                 </div>
                 <div class="kpi-card__bar"></div>
             </div>
@@ -53,11 +43,11 @@
         <div class="col-6 col-lg-3">
             <div class="kpi-card">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="kpi-card__label">Places réservées</span>
+                    <span class="kpi-card__label">Passagers transportés</span>
                     <span class="icon-chip icon-chip--ghost"><i class="bi bi-people-fill" aria-hidden="true"></i></span>
                 </div>
-                <div class="kpi-card__value" data-controller="counter" data-counter-target-value="{{ totalConfirmedPassengers }}">
-                    {{ totalConfirmedPassengers }}
+                <div class="kpi-card__value" data-controller="counter" data-counter-target-value="{{ passengersTransported }}">
+                    {{ passengersTransported }}
                 </div>
                 <div class="kpi-card__bar"></div>
             </div>
@@ -65,14 +55,14 @@
         <div class="col-6 col-lg-3">
             <div class="kpi-card">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="kpi-card__label">Revenus confirmés</span>
+                    <span class="kpi-card__label">Revenus estimés</span>
                     <span class="icon-chip"><i class="bi bi-cash-stack" aria-hidden="true"></i></span>
                 </div>
                 <div class="kpi-card__value"
                      data-controller="counter"
-                     data-counter-target-value="{{ totalEstimatedRevenue }}"
+                     data-counter-target-value="{{ estimatedRevenue }}"
                      data-counter-suffix-value=" MAD">
-                    {{ totalEstimatedRevenue|number_format(0, ',', ' ') }} MAD
+                    {{ estimatedRevenue }} MAD
                 </div>
                 <div class="kpi-card__bar"></div>
             </div>
@@ -91,6 +81,64 @@
         </div>
     </div>
 </div>
+
+{% if not hasAnyTrip %}
+    <div class="card mb-5">
+        <div class="empty-state">
+            <div class="empty-state__art" aria-hidden="true">
+                <i class="bi bi-signpost-split"></i>
+            </div>
+            <h2 class="h4 fw-extrabold mb-2">Vous n'avez pas encore publié de trajet</h2>
+            <p class="text-muted small mb-4" style="max-width: 520px; margin-inline: auto;">
+                Enregistrez votre véhicule puis publiez votre premier itinéraire multi-étapes au Maroc pour commencer à partager vos trajets.
+            </p>
+            <div class="d-flex justify-content-center flex-wrap gap-2">
+                <a href="{{ path('app_trip_new') }}" class="btn btn-lime">
+                    <i class="bi bi-plus-circle-fill me-1" aria-hidden="true"></i>Publier un trajet
+                </a>
+                <a href="{{ path('app_my_vehicles') }}" class="btn btn-outline-light">
+                    <i class="bi bi-car-front-fill me-1" aria-hidden="true"></i>Ajouter un véhicule
+                </a>
+            </div>
+        </div>
+    </div>
+{% else %}
+    {% if nextDepartureTrip is not null %}
+        {% set nextStops = nextDepartureTrip.stops %}
+        {% set nextFirst = nextStops|first %}
+        {% set nextLast = nextStops|last %}
+        {% set nextConfirmed = nextDepartureTrip.bookings|filter(b => b.status.value == 'CONFIRMED') %}
+        <div class="card glow-border mb-4" aria-label="Prochain départ">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge badge-lime">
+                                <i class="bi bi-alarm-fill me-1" aria-hidden="true"></i>Prochain départ
+                            </span>
+                            <span class="badge badge-surface">
+                                {{ nextFirst.departureTime|date('d/m/Y à H:i') }}
+                            </span>
+                            <span class="badge badge-surface">
+                                {{ nextConfirmed|length }} réservation(s) confirmée(s)
+                            </span>
+                        </div>
+                        <h2 class="h5 fw-extrabold mb-1">
+                            {{ nextFirst.city.name }} &rarr; {{ nextLast.city.name }}
+                        </h2>
+                        <div class="small text-muted">
+                            <i class="bi bi-car-front me-1" aria-hidden="true"></i>
+                            {{ nextDepartureTrip.vehicle.brand }} {{ nextDepartureTrip.vehicle.model }}
+                            &bull; {{ nextStops|length }} étapes &bull; {{ nextDepartureTrip.seatsTotal }} places proposées
+                        </div>
+                    </div>
+                    <a href="{{ path('app_trip_show', {id: nextDepartureTrip.id}) }}" class="btn btn-lime btn-sm">
+                        <i class="bi bi-eye me-1" aria-hidden="true"></i>Voir le trajet
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 
 {# Segmented Tabs for Published vs History #}
 <div data-controller="tabs">
@@ -188,9 +236,9 @@
 
                                     <div class="small text-muted mt-1">
                                         <i class="bi bi-car-front me-1" aria-hidden="true"></i>
-                                        Véhicule : <strong class="text-white">{{ trip.vehicle.brand }} {{ trip.vehicle.model }}</strong>
-                                        &bull; Capacité : <strong class="text-white">{{ trip.seatsTotal }} places</strong>
-                                        &bull; Revenu confirmé : <strong class="text-white">{{ tripRevenue|number_format(2, '.', ' ') }} MAD</strong>
+                                        Véhicule : <strong style="color: var(--text);">{{ trip.vehicle.brand }} {{ trip.vehicle.model }}</strong>
+                                        &bull; Capacité : <strong style="color: var(--text);">{{ trip.seatsTotal }} places</strong>
+                                        &bull; Revenu confirmé : <strong style="color: var(--text);">{{ tripRevenue|number_format(2, '.', ' ') }} MAD</strong>
                                     </div>
                                 </div>
 
@@ -221,7 +269,7 @@
                             <div class="mb-4">
                                 <div class="d-flex justify-content-between small mb-1">
                                     <span class="text-muted">Taux de réservation ({{ confirmedBookings|length }} réservation(s) active(s))</span>
-                                    <strong class="text-white">{{ seatsSold }} place(s) réservée(s) sur les segments</strong>
+                                    <strong style="color: var(--text);">{{ seatsSold }} place(s) réservée(s) sur les segments</strong>
                                 </div>
                                 <div class="occupancy">
                                     <div class="occupancy__fill" style="--p: {{ occPercent }}%;"></div>
@@ -289,7 +337,7 @@
                                                                 {{ booking.passenger.fullName }}
                                                             </a>
                                                             <div class="small text-muted">
-                                                                Segment : <strong class="text-white">{{ booking.fromStop.city.name }} &rarr; {{ booking.toStop.city.name }}</strong>
+                                                                Segment : <strong style="color: var(--text);">{{ booking.fromStop.city.name }} &rarr; {{ booking.toStop.city.name }}</strong>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -362,4 +410,5 @@
         {% endif %}
     </section>
 </div>
+{% endif %}
 {% endblock %}
