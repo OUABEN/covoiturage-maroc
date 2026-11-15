@@ -29,18 +29,14 @@ class TripRepository extends ServiceEntityRepository
 
     /**
      * Recherche les trajets PUBLISHED reliant $fromCity à $toCity (avec sFrom.stopOrder < sTo.stopOrder)
-     * à la date $date, et retourne pour chaque trajet trouvé le prix de la portion (via bcmath)
+     * à la date $date (ou départ futur si $date est null), et retourne pour chaque trajet trouvé le prix de la portion (via bcmath)
      * et le nombre de places disponibles sur cette portion (ne retourne que les portions ayant >= $minSeats places).
      *
      * @return list<TripSearchResult>
      */
-    public function search(City $fromCity, City $toCity, \DateTimeInterface $date, int $minSeats = 1): array
+    public function search(City $fromCity, City $toCity, ?\DateTimeInterface $date = null, int $minSeats = 1): array
     {
-        $dayStart = \DateTimeImmutable::createFromInterface($date)->setTime(0, 0, 0);
-        $dayEnd = \DateTimeImmutable::createFromInterface($date)->setTime(23, 59, 59);
-
-        /** @var list<Trip> $trips */
-        $trips = $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->innerJoin(
                 TripStop::class,
                 'sFrom',
@@ -54,18 +50,30 @@ class TripRepository extends ServiceEntityRepository
                 'sTo.trip = t AND sTo.city = :toCity AND sFrom.stopOrder < sTo.stopOrder'
             )
             ->leftJoin('t.stops', 'allStops')
-            ->addSelect('allStops')
+            ->leftJoin('allStops.city', 'c')
+            ->leftJoin('t.driver', 'd')
+            ->leftJoin('t.vehicle', 'v')
+            ->addSelect('allStops', 'c', 'd', 'v')
             ->where('t.status = :status')
-            ->andWhere('sFrom.departureTime >= :dayStart')
-            ->andWhere('sFrom.departureTime <= :dayEnd')
             ->setParameter('fromCity', $fromCity)
             ->setParameter('toCity', $toCity)
             ->setParameter('status', TripStatus::PUBLISHED)
-            ->setParameter('dayStart', $dayStart)
-            ->setParameter('dayEnd', $dayEnd)
-            ->orderBy('sFrom.departureTime', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('sFrom.departureTime', 'ASC');
+
+        if (null !== $date) {
+            $dayStart = \DateTimeImmutable::createFromInterface($date)->setTime(0, 0, 0);
+            $dayEnd = \DateTimeImmutable::createFromInterface($date)->setTime(23, 59, 59);
+            $qb->andWhere('sFrom.departureTime >= :dayStart')
+                ->andWhere('sFrom.departureTime <= :dayEnd')
+                ->setParameter('dayStart', $dayStart)
+                ->setParameter('dayEnd', $dayEnd);
+        } else {
+            $qb->andWhere('sFrom.departureTime >= :now')
+                ->setParameter('now', new \DateTimeImmutable());
+        }
+
+        /** @var list<Trip> $trips */
+        $trips = $qb->getQuery()->getResult();
 
         $results = [];
 
@@ -106,6 +114,88 @@ class TripRepository extends ServiceEntityRepository
                 portionPrice: $portionPrice,
                 availableSeats: $availableSeats,
             );
+        }
+
+        return $results;
+    }
+
+    /**
+     * Recherche les trajets PUBLISHED à venir passant par $fromCity avec leurs destinations possibles
+     * (arrêts ultérieurs avec places disponibles et prix de la portion).
+     *
+     * @return list<array{trip: Trip, fromStop: TripStop, destinations: list<array{stop: TripStop, portionPrice: string, availableSeats: int}>}>
+     */
+    public function findUpcomingFromCity(City $fromCity, ?\DateTimeInterface $date = null): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->innerJoin(
+                TripStop::class,
+                'sFrom',
+                Join::WITH,
+                'sFrom.trip = t AND sFrom.city = :fromCity'
+            )
+            ->leftJoin('t.stops', 'allStops')
+            ->leftJoin('allStops.city', 'c')
+            ->leftJoin('t.driver', 'd')
+            ->leftJoin('t.vehicle', 'v')
+            ->addSelect('allStops', 'c', 'd', 'v')
+            ->where('t.status = :status')
+            ->setParameter('fromCity', $fromCity)
+            ->setParameter('status', TripStatus::PUBLISHED)
+            ->orderBy('sFrom.departureTime', 'ASC');
+
+        if (null !== $date) {
+            $dayStart = \DateTimeImmutable::createFromInterface($date)->setTime(0, 0, 0);
+            $dayEnd = \DateTimeImmutable::createFromInterface($date)->setTime(23, 59, 59);
+            $qb->andWhere('sFrom.departureTime >= :dayStart')
+                ->andWhere('sFrom.departureTime <= :dayEnd')
+                ->setParameter('dayStart', $dayStart)
+                ->setParameter('dayEnd', $dayEnd);
+        } else {
+            $qb->andWhere('sFrom.departureTime >= :now')
+                ->setParameter('now', new \DateTimeImmutable());
+        }
+
+        /** @var list<Trip> $trips */
+        $trips = $qb->getQuery()->getResult();
+
+        $results = [];
+        foreach ($trips as $trip) {
+            $fromStop = null;
+            foreach ($trip->getStops() as $stop) {
+                if ($stop->getCity()?->getId() === $fromCity->getId()) {
+                    $fromStop = $stop;
+                    break;
+                }
+            }
+
+            if (null === $fromStop) {
+                continue;
+            }
+
+            $destinations = [];
+            $runningPrice = '0.00';
+            foreach ($trip->getStops() as $stop) {
+                if ((int) $stop->getStopOrder() > (int) $fromStop->getStopOrder()) {
+                    $runningPrice = bcadd($runningPrice, $stop->getPriceFromPrevious(), 2);
+                    $seats = $this->availabilityService->availableSeats($trip, $fromStop, $stop);
+                    if ($seats > 0) {
+                        $destinations[] = [
+                            'stop' => $stop,
+                            'portionPrice' => $runningPrice,
+                            'availableSeats' => $seats,
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($destinations)) {
+                $results[] = [
+                    'trip' => $trip,
+                    'fromStop' => $fromStop,
+                    'destinations' => $destinations,
+                ];
+            }
         }
 
         return $results;
