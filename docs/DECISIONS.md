@@ -61,6 +61,13 @@ Ce document recense de manière chronologique les décisions d'architecture, les
     - **Exception (modification d'horaire $> \pm 30\text{ min}$ par le conducteur)** : remboursement de **100 %** même si $\Delta t \le 24\text{h}$.
 - **Justification** : Ce barème équilibré protège le passager en cas d'annulation anticipée ou imputable au conducteur, tout en indemnisant le conducteur lorsqu'une place est annulée à la dernière minute.
 
+## 2026-11-15 — Recherche interactive par carte et Trajets populaires (Partie 1)
+- **Contexte** : Amélioration visuelle et ergonomique de la page d'accueil (`/`) : mise en avant de 6 trajets populaires à venir (au lieu de 3 statiques) et ajout d'un mode de recherche par carte Leaflet en plus du formulaire existant.
+- **Décisions** :
+  1. **Trajets populaires dynamiques sans N+1** : Implémentation de `TripRepository::findUpcomingPopular(6)` avec jointure eager (`firstStop`, `allStops`, `city`, `driver`, `vehicle`) et `Paginator` Doctrine. Tri par date de départ chronologique puis capacité. Affichage en grille responsive (3 col desktop, 2 tablette, 1 mobile) avec photo locale/fallback dégradé, conducteur masqué (`Prénom I.`), et prix d'appel « À partir de ».
+  2. **Endpoint public `/api/map/trips`** : Fournit les trajets à venir entre deux villes (`from` et `to`) ou au départ d'une ville (`from` seul avec liste des destinations atteignables). Validation stricte des identifiants (entiers positifs distincts), code 400 pour paramètres invalides, 404 pour villes inexistantes, rate limiting de 60 requêtes/minute par IP via le cache Symfony (`CacheInterface`), et absence stricte de toute coordonnée personnelle (aucun email, aucun téléphone).
+  3. **Recherche par carte Leaflet intégrée** : Ajout d'onglets accessibles « Formulaire | Carte ». La carte Leaflet se cale sur les coordonnées de la table `city` injectées en JSON côté client (aucun appel Nominatim/OSRM externe requis). Tuiles CartoDB Dark Matter et Positron commutées dynamiquement sur l'événement `theme:changed`. Marqueurs Lime `#C6F432` conformes à la zone tactile minimale de 44 px. Alternative accessible au clavier via deux listes déroulantes synchronisées.
+
 ---
 
 ## Partie 2 — Les 5 « Questions à trancher » du sujet (propositions justifiées)
