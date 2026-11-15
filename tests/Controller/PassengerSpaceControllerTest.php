@@ -45,6 +45,61 @@ class PassengerSpaceControllerTest extends WebTestCase
         $conn->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
     }
 
+    /**
+     * @return array{driver: User, passenger: User, intruder: User, vehicle: Vehicle, agadir: City, marrakech: City}
+     */
+    private function createScenarioUsers(): array
+    {
+        $suffix = bin2hex(random_bytes(4));
+
+        $driver = (new User())
+            ->setEmail('driver.pass.'.$suffix.'@covoiturage.ma')
+            ->setFirstName('Salma')
+            ->setLastName('Chraïbi')
+            ->setPhone('+212 6 64 00 00 01');
+        $driver->setPassword($this->passwordHasher->hashPassword($driver, 'demo1234'));
+        $this->em->persist($driver);
+
+        $passenger = (new User())
+            ->setEmail('passenger.pass.'.$suffix.'@covoiturage.ma')
+            ->setFirstName('Mehdi')
+            ->setLastName('Tazi')
+            ->setPhone('+212 6 65 00 00 02');
+        $passenger->setPassword($this->passwordHasher->hashPassword($passenger, 'demo1234'));
+        $this->em->persist($passenger);
+
+        $intruder = (new User())
+            ->setEmail('intruder.pass.'.$suffix.'@covoiturage.ma')
+            ->setFirstName('Karim')
+            ->setLastName('Intruder')
+            ->setPhone('+212 6 66 00 00 03');
+        $intruder->setPassword($this->passwordHasher->hashPassword($intruder, 'demo1234'));
+        $this->em->persist($intruder);
+
+        $vehicle = (new Vehicle())
+            ->setOwner($driver)
+            ->setBrand('Hyundai')
+            ->setModel('Tucson')
+            ->setColor('Argent')
+            ->setSeats(4);
+        $this->em->persist($vehicle);
+
+        $agadir = (new City())->setName('Agadir_'.$suffix)->setLatitude('30.427755')->setLongitude('-9.598107');
+        $marrakech = (new City())->setName('Marrakech_'.$suffix)->setLatitude('31.629472')->setLongitude('-7.981084');
+        $this->em->persist($agadir);
+        $this->em->persist($marrakech);
+        $this->em->flush();
+
+        return [
+            'driver' => $driver,
+            'passenger' => $passenger,
+            'intruder' => $intruder,
+            'vehicle' => $vehicle,
+            'agadir' => $agadir,
+            'marrakech' => $marrakech,
+        ];
+    }
+
     private function createBookingWithDepartureOffset(
         User $driver,
         User $passenger,
@@ -95,128 +150,211 @@ class PassengerSpaceControllerTest extends WebTestCase
         return $booking;
     }
 
-    public function testCancellationAtAllThreeTiersThirdPartyForbiddenAndReviewRules(): void
+    public function testIdorAccessDeniedToThirdPartyForCancellationAndReview(): void
     {
-        $driver = (new User())
-            ->setEmail('driver.pass@covoiturage.ma')
-            ->setFirstName('Salma')
-            ->setLastName('Chraïbi')
-            ->setPhone('+212 6 64 00 00 01');
-        $driver->setPassword($this->passwordHasher->hashPassword($driver, 'demo1234'));
-        $this->em->persist($driver);
+        $u = $this->createScenarioUsers();
+        $booking = $this->createBookingWithDepartureOffset($u['driver'], $u['passenger'], $u['vehicle'], $u['agadir'], $u['marrakech'], '+3 days');
 
-        $passenger = (new User())
-            ->setEmail('passenger.pass@covoiturage.ma')
-            ->setFirstName('Mehdi')
-            ->setLastName('Tazi')
-            ->setPhone('+212 6 65 00 00 02');
-        $passenger->setPassword($this->passwordHasher->hashPassword($passenger, 'demo1234'));
-        $this->em->persist($passenger);
+        $this->client->loginUser($u['intruder']);
 
-        $intruder = (new User())
-            ->setEmail('intruder.pass@covoiturage.ma')
-            ->setFirstName('Karim')
-            ->setLastName('Intruder')
-            ->setPhone('+212 6 66 00 00 03');
-        $intruder->setPassword($this->passwordHasher->hashPassword($intruder, 'demo1234'));
-        $this->em->persist($intruder);
-
-        $vehicle = (new Vehicle())
-            ->setOwner($driver)
-            ->setBrand('Hyundai')
-            ->setModel('Tucson')
-            ->setColor('Argent')
-            ->setSeats(4);
-        $this->em->persist($vehicle);
-
-        $agadir = (new City())->setName('Agadir')->setLatitude('30.427755')->setLongitude('-9.598107');
-        $marrakech = (new City())->setName('Marrakech')->setLatitude('31.629472')->setLongitude('-7.981084');
-        $this->em->persist($agadir);
-        $this->em->persist($marrakech);
-        $this->em->flush();
-
-        $booking100 = $this->createBookingWithDepartureOffset($driver, $passenger, $vehicle, $agadir, $marrakech, '+3 days', '240.00');
-        $booking50 = $this->createBookingWithDepartureOffset($driver, $passenger, $vehicle, $agadir, $marrakech, '+10 hours', '200.00');
-        $booking0 = $this->createBookingWithDepartureOffset($driver, $passenger, $vehicle, $agadir, $marrakech, '+1 hour', '160.00');
-        $bookingActive = $this->createBookingWithDepartureOffset($driver, $passenger, $vehicle, $agadir, $marrakech, '+2 days', '120.00');
-        $bookingCompleted = $this->createBookingWithDepartureOffset($driver, $passenger, $vehicle, $agadir, $marrakech, '-2 days', '120.00', TripStatus::COMPLETED);
-
-        // 1. Accès refusé (403) à un tiers (BookingVoter)
-        $this->client->loginUser($intruder);
-        $this->client->request('GET', sprintf('/mes-reservations/%d/annuler', $booking100->getId()));
+        // GET confirm cancel of another user's booking -> 403 Forbidden
+        $this->client->request('GET', sprintf('/mes-reservations/%d/annuler', $booking->getId()));
         self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
 
-        $this->client->request('POST', sprintf('/mes-reservations/%d/annuler', $booking100->getId()));
+        // POST cancel of another user's booking -> 403 Forbidden
+        $this->client->request('POST', sprintf('/mes-reservations/%d/annuler', $booking->getId()));
         self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
 
-        $this->client->request('POST', sprintf('/mes-reservations/%d/avis', $bookingCompleted->getId()));
+        // POST review of another user's booking -> 403 Forbidden
+        $this->client->request('POST', sprintf('/mes-reservations/%d/avis', $booking->getId()));
         self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+    }
 
-        // 2. Connexion du propriétaire et vérification des 3 paliers de remboursement (100 %, 50 %, 0 %)
-        $this->client->loginUser($passenger);
+    public function testMissingCsrfTokenRejectsBookingCancellation(): void
+    {
+        $u = $this->createScenarioUsers();
+        $booking = $this->createBookingWithDepartureOffset($u['driver'], $u['passenger'], $u['vehicle'], $u['agadir'], $u['marrakech'], '+3 days');
 
-        // Palier 100 % (> 24h)
-        $crawler = $this->client->request('GET', sprintf('/mes-reservations/%d/annuler', $booking100->getId()));
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', '100 % (240.00 MAD)');
-        $form100 = $crawler->selectButton('Confirmer l\'annulation (100 % : 240.00 MAD)')->form();
-        $this->client->submit($form100);
+        $this->client->loginUser($u['passenger']);
+
+        // POST cancel without _token
+        $this->client->request('POST', sprintf('/mes-reservations/%d/annuler', $booking->getId()), [
+            '_token' => 'invalid_csrf_token',
+        ]);
         self::assertResponseRedirects('/mes-reservations');
+        $this->client->followRedirect();
+        self::assertSelectorExists('.alert-danger');
 
-        // Palier 50 % (entre 2h et 24h)
-        $crawler = $this->client->request('GET', sprintf('/mes-reservations/%d/annuler', $booking50->getId()));
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', '50 % (100.00 MAD)');
-        $form50 = $crawler->selectButton('Confirmer l\'annulation (50 % : 100.00 MAD)')->form();
-        $this->client->submit($form50);
+        // Booking remains CONFIRMED
+        $this->em->clear();
+        $reloaded = $this->em->find(Booking::class, $booking->getId());
+        self::assertSame(BookingStatus::CONFIRMED, $reloaded?->getStatus());
+    }
+
+    public function testMissingCsrfTokenRejectsReviewSubmission(): void
+    {
+        $u = $this->createScenarioUsers();
+        $booking = $this->createBookingWithDepartureOffset($u['driver'], $u['passenger'], $u['vehicle'], $u['agadir'], $u['marrakech'], '-2 days', '120.00', TripStatus::COMPLETED);
+
+        $this->client->loginUser($u['passenger']);
+
+        $this->client->request('POST', sprintf('/mes-reservations/%d/avis', $booking->getId()), [
+            '_token' => 'invalid_token',
+            'rating' => 5,
+            'comment' => 'Commentaire sans CSRF',
+        ]);
         self::assertResponseRedirects('/mes-reservations');
+        $this->client->followRedirect();
+        self::assertSelectorExists('.alert-danger');
 
-        // Palier 0 % (< 2h)
-        $crawler = $this->client->request('GET', sprintf('/mes-reservations/%d/annuler', $booking0->getId()));
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', '0 % (0.00 MAD)');
-        $form0 = $crawler->selectButton('Confirmer l\'annulation (0 % : 0.00 MAD)')->form();
-        $this->client->submit($form0);
+        self::assertSame(0, $this->em->getRepository(Review::class)->count(['booking' => $booking->getId()]));
+    }
+
+    public function testDoubleCancellationIsRejected(): void
+    {
+        $u = $this->createScenarioUsers();
+        $booking = $this->createBookingWithDepartureOffset($u['driver'], $u['passenger'], $u['vehicle'], $u['agadir'], $u['marrakech'], '+3 days');
+
+        $this->client->loginUser($u['passenger']);
+
+        // First cancellation -> Success
+        $crawler = $this->client->request('GET', sprintf('/mes-reservations/%d/annuler', $booking->getId()));
+        $form = $crawler->selectButton('Confirmer l\'annulation (100 % : 200.00 MAD)')->form();
+        $this->client->submit($form);
         self::assertResponseRedirects('/mes-reservations');
 
         $this->em->clear();
-        self::assertSame('240.00', $this->em->find(Booking::class, $booking100->getId())?->getRefundAmount());
-        self::assertSame('100.00', $this->em->find(Booking::class, $booking50->getId())?->getRefundAmount());
-        self::assertSame('0.00', $this->em->find(Booking::class, $booking0->getId())?->getRefundAmount());
+        $reloaded = $this->em->find(Booking::class, $booking->getId());
+        self::assertSame(BookingStatus::CANCELLED_BY_PASSENGER, $reloaded?->getStatus());
 
-        // 3a. Avis refusé avant la fin du trajet (trajet repassé en PUBLISHED au moment du POST)
+        // Second cancellation attempt on already cancelled booking
+        $this->client->request('POST', sprintf('/mes-reservations/%d/annuler', $booking->getId()), [
+            '_token' => $form->get('_token')->getValue(),
+        ]);
+        // Handled either by voter/controller flash danger or redirect
+        self::assertResponseRedirects('/mes-reservations');
+        $this->client->followRedirect();
+        self::assertSelectorExists('.alert-danger');
+    }
+
+    public function testCancellationRefundTier100PercentMoreThan24Hours(): void
+    {
+        $u = $this->createScenarioUsers();
+        $booking = $this->createBookingWithDepartureOffset($u['driver'], $u['passenger'], $u['vehicle'], $u['agadir'], $u['marrakech'], '+3 days', '240.00');
+
+        $this->client->loginUser($u['passenger']);
+
+        $crawler = $this->client->request('GET', sprintf('/mes-reservations/%d/annuler', $booking->getId()));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', '100 % (240.00 MAD)');
+
+        $form = $crawler->selectButton('Confirmer l\'annulation (100 % : 240.00 MAD)')->form();
+        $this->client->submit($form);
+        self::assertResponseRedirects('/mes-reservations');
+
+        $this->em->clear();
+        $reloaded = $this->em->find(Booking::class, $booking->getId());
+        self::assertSame('240.00', $reloaded?->getRefundAmount());
+        self::assertSame(BookingStatus::CANCELLED_BY_PASSENGER, $reloaded?->getStatus());
+    }
+
+    public function testCancellationRefundTier50PercentBetween2And24Hours(): void
+    {
+        $u = $this->createScenarioUsers();
+        $booking = $this->createBookingWithDepartureOffset($u['driver'], $u['passenger'], $u['vehicle'], $u['agadir'], $u['marrakech'], '+10 hours', '200.00');
+
+        $this->client->loginUser($u['passenger']);
+
+        $crawler = $this->client->request('GET', sprintf('/mes-reservations/%d/annuler', $booking->getId()));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', '50 % (100.00 MAD)');
+
+        $form = $crawler->selectButton('Confirmer l\'annulation (50 % : 100.00 MAD)')->form();
+        $this->client->submit($form);
+        self::assertResponseRedirects('/mes-reservations');
+
+        $this->em->clear();
+        $reloaded = $this->em->find(Booking::class, $booking->getId());
+        self::assertSame('100.00', $reloaded?->getRefundAmount());
+    }
+
+    public function testCancellationRefundTier0PercentLessThan2Hours(): void
+    {
+        $u = $this->createScenarioUsers();
+        $booking = $this->createBookingWithDepartureOffset($u['driver'], $u['passenger'], $u['vehicle'], $u['agadir'], $u['marrakech'], '+1 hour', '160.00');
+
+        $this->client->loginUser($u['passenger']);
+
+        $crawler = $this->client->request('GET', sprintf('/mes-reservations/%d/annuler', $booking->getId()));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', '0 % (0.00 MAD)');
+
+        $form = $crawler->selectButton('Confirmer l\'annulation (0 % : 0.00 MAD)')->form();
+        $this->client->submit($form);
+        self::assertResponseRedirects('/mes-reservations');
+
+        $this->em->clear();
+        $reloaded = $this->em->find(Booking::class, $booking->getId());
+        self::assertSame('0.00', $reloaded?->getRefundAmount());
+    }
+
+    public function testReviewBeforeTripCompletionIsRejected(): void
+    {
+        $u = $this->createScenarioUsers();
+        // Create booking on completed trip to extract valid CSRF form token
+        $booking = $this->createBookingWithDepartureOffset($u['driver'], $u['passenger'], $u['vehicle'], $u['agadir'], $u['marrakech'], '-2 days', '120.00', TripStatus::COMPLETED);
+
+        $this->client->loginUser($u['passenger']);
+
         $crawler = $this->client->request('GET', '/mes-reservations');
-        $reviewFormPreCompletion = $crawler->selectButton('Envoyer l\'avis')->form([
+        $reviewForm = $crawler->selectButton('Envoyer l\'avis')->form([
             'rating' => '5',
             'comment' => 'Tentative avant fin du trajet',
         ]);
 
-        $tripToRevert = $this->em->find(Trip::class, $bookingCompleted->getTrip()->getId());
-        $tripToRevert?->setStatus(TripStatus::PUBLISHED);
+        // Revert trip status to PUBLISHED before submitting
+        $trip = $this->em->find(Trip::class, $booking->getTrip()->getId());
+        $trip?->setStatus(TripStatus::PUBLISHED);
         $this->em->flush();
 
-        $this->client->submit($reviewFormPreCompletion);
+        $this->client->submit($reviewForm);
         self::assertResponseRedirects('/mes-reservations');
         $this->client->followRedirect();
         self::assertSelectorExists('.alert-danger');
-        self::assertSame(0, $this->em->getRepository(Review::class)->count(['booking' => $bookingCompleted->getId()]));
 
-        // 3b. Avis accepté après la fin du trajet (trajet COMPLETED)
-        $tripToComplete = $this->em->find(Trip::class, $bookingCompleted->getTrip()->getId());
-        $tripToComplete?->setStatus(TripStatus::COMPLETED);
-        $this->em->flush();
+        self::assertSame(0, $this->em->getRepository(Review::class)->count(['booking' => $booking->getId()]));
+    }
+
+    public function testReviewAfterTripCompletedIsAcceptedAndDuplicateIsRejected(): void
+    {
+        $u = $this->createScenarioUsers();
+        $booking = $this->createBookingWithDepartureOffset($u['driver'], $u['passenger'], $u['vehicle'], $u['agadir'], $u['marrakech'], '-2 days', '120.00', TripStatus::COMPLETED);
+
+        $this->client->loginUser($u['passenger']);
 
         $crawler = $this->client->request('GET', '/mes-reservations');
-        $reviewFormCompleted = $crawler->selectButton('Envoyer l\'avis')->form([
+        $reviewForm = $crawler->selectButton('Envoyer l\'avis')->form([
             'rating' => '5',
             'comment' => 'Trajet impeccable !',
         ]);
-        $this->client->submit($reviewFormCompleted);
+        $this->client->submit($reviewForm);
         self::assertResponseRedirects('/mes-reservations');
         $this->client->followRedirect();
         self::assertSelectorExists('.alert-success');
 
-        $reviewCount = $this->em->getRepository(Review::class)->count(['booking' => $bookingCompleted->getId()]);
-        self::assertSame(1, $reviewCount);
+        self::assertSame(1, $this->em->getRepository(Review::class)->count(['booking' => $booking->getId()]));
+
+        // Duplicate review attempt on same booking by same user -> rejected
+        $token = $reviewForm->get('_token')->getValue();
+        $this->client->request('POST', sprintf('/mes-reservations/%d/avis', $booking->getId()), [
+            '_token' => $token,
+            'rating' => 4,
+            'comment' => 'Deuxième avis non autorisé',
+        ]);
+        self::assertResponseRedirects('/mes-reservations');
+        $this->client->followRedirect();
+        self::assertSelectorExists('.alert-danger');
+
+        self::assertSame(1, $this->em->getRepository(Review::class)->count(['booking' => $booking->getId()]));
     }
 }
