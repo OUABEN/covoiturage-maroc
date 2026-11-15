@@ -1,156 +1,166 @@
-# Guide d'installation et de démarrage — AtlasCovoit Maroc
+# Guide d'installation et d'exécution — AtlasCovoit Maroc
 
-Ce guide explique comment installer, démarrer et tester la plateforme **AtlasCovoit Maroc** sur une machine propre en une seule commande, sans installer PHP, Composer, MySQL, Node.js ni XAMPP sur votre système hôte.
+Ce guide permet d'installer, lancer et vérifier l'application **AtlasCovoit Maroc** sur n'importe quelle machine propre (Windows, macOS ou Linux) en une seule commande, **sans XAMPP, WAMP, PHP ni MySQL installés localement**.
 
 ---
 
 ## 1. Prérequis
 
-- **Docker Desktop** (Windows / macOS) ou **Docker Engine + Docker Compose v2** (Linux), démarré.
-- **Git** pour cloner le dépôt.
-- **Aucun prérequis local supplémentaire** : ni XAMPP, ni WAMP, ni PHP local, ni Composer local ne sont nécessaires.
+Seuls deux outils sont nécessaires sur la machine hôte :
+
+1. **Docker Desktop** (incluant Docker Engine et Docker Compose v2) — démarré et actif.
+2. **Git** — pour cloner le dépôt.
+
+> [!NOTE]
+> Aucune installation locale de PHP, Composer, Node.js ou MySQL n'est requise : l'ensemble de l'environnement d'exécution est encapsulé dans les conteneurs Docker.
 
 ---
 
-## 2. Clonage et démarrage en une commande
+## 2. Clonage du dépôt
 
 ```bash
-# 1. Cloner le dépôt
-git clone https://github.com/anasouali06-dev/covoiturage-maroc.git
+git clone https://github.com/OUABEN/covoiturage-maroc.git
 cd covoiturage-maroc
-
-# 2. Construire et démarrer toute la stack Docker
-docker compose up -d --build
 ```
-
-> **Note** : vous pouvez également lancer `docker compose up --build` (sans `-d`) pour observer en direct les journaux d'initialisation dans votre terminal.
-
-### Ce qui s'exécute automatiquement au premier démarrage (`docker/php/entrypoint.sh`)
-1. **Vérification de `APP_SECRET`** : génère automatiquement une clé aléatoire dans `.env.local` si aucune clé n'est définie (ou utilise la valeur publique de développement fournie par `compose.yaml`).
-2. **Dépendances PHP** : exécute `composer install --no-interaction --prefer-dist`.
-3. **Assets Frontend** : exécute `php bin/console importmap:install` (Stimulus / AssetMapper) et `php bin/console assets:install public` (EasyAdmin).
-4. **Attente active de MySQL 8.0** : vérifie la disponibilité de `database:3306`.
-5. **Migrations SQL** : applique les migrations Doctrine sur la base principale (`covoiturage`) et prépare automatiquement la base de test (`covoiturage_test`).
-6. **Jeu de données de démonstration (Fixtures)** : si `APP_ENV=dev` et que la table `city` est vide (`0` ville), charge automatiquement les 10 villes marocaines, 8 comptes utilisateurs, 5 véhicules, 8 trajets multi-étapes, 14 réservations et avis croisés.
 
 ---
 
-## 3. URLs des services
+## 3. Lancement en une seule commande
 
-Une fois les conteneurs démarrés (environ 30 à 60 secondes lors du tout premier build) :
+```bash
+docker compose up --build -d
+```
+
+*(Vous pouvez également lancer `docker compose up --build` au premier plan pour observer les journaux d'initialisation en direct.)*
+
+### Ce qui s'exécute automatiquement au premier démarrage (`docker/php/entrypoint.sh`) :
+1. **Génération de `APP_SECRET`** : si `APP_SECRET` est vide, un secret aléatoire de 64 caractères hexadécimaux est généré et inscrit automatiquement dans `.env.local` (aucun secret réel n'est stocké dans Git).
+2. **Dépendances PHP & Frontend** : exécution de `composer install --no-interaction --prefer-dist` et installation des assets Importmap (`importmap:install`).
+3. **Attente active de MySQL 8.0** : vérification par healthcheck Docker et boucle PDO jusqu'à ce que le serveur MySQL accepte les connexions.
+4. **Migrations SQL** : exécution automatique de `php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration`.
+5. **Fixtures de démonstration** : si `APP_ENV=dev` et que la table `city` est vide, chargement automatique des 10 villes marocaines, 8 utilisateurs, 5 véhicules, 8 trajets multi-étapes, 14 réservations et avis croisés (`doctrine:fixtures:load --no-interaction`).
+
+Pour suivre la progression de l'initialisation :
+```bash
+docker compose logs -f php
+```
+Lorsque le message `ready to handle connections` apparaît, l'application est prête.
+
+---
+
+## 4. URLs d'accès
 
 | Service | URL par défaut | Identifiants / Détails |
 |---|---|---|
-| **Application Web (Symfony 7.4)** | http://localhost:8088 | Accueil, recherche, réservation, espaces passager/conducteur |
-| **Back-office EasyAdmin 4** | http://localhost:8088/admin | Réservé au compte `admin@covoiturage.ma` (`demo1234`) |
-| **API publique Route / Tarif** | http://localhost:8088/api/route?from=1&to=2 | JSON (distance, durée, géométrie GeoJSON, prix suggéré) |
-| **phpMyAdmin** | http://localhost:8081 | Utilisateur : `app` / Mot de passe : `app` (ou `root` / `root`) |
-| **MySQL 8.0 (port hôte)** | `127.0.0.1:3308` | Base : `covoiturage` (`app` / `app`) |
+| **Application Web (Accueil)** | http://localhost:8088 | Port configurable via `NGINX_PORT` (défaut `8088` pour éviter les conflits sur `8080`) |
+| **Back-office EasyAdmin** | http://localhost:8088/admin | Réservé au compte `ROLE_ADMIN` (`admin@covoiturage.ma` / `demo1234`) |
+| **API Itinéraire & Tarif OSRM** | http://localhost:8088/api/route?from=1&to=2 | Retourne distance, durée, géométrie GeoJSON et prix suggéré |
+| **phpMyAdmin** | http://localhost:8081 | Serveur : `database` · Utilisateur : `app` · Mot de passe : `app` |
+| **MySQL 8.0 (depuis l'hôte)** | `127.0.0.1:3308` | Base : `covoiturage` · Utilisateur : `app` · Mot de passe : `app` |
 
 ---
 
-## 4. Comptes de démonstration
+## 5. Comptes de démonstration
 
-Tous les comptes chargés par les fixtures utilisent le mot de passe unique : **`demo1234`**
+Tous les comptes chargés par les fixtures partagent le mot de passe unique : **`demo1234`**
 
-| Rôle métier | Adresse e-mail | Nom complet | Rôle Symfony | Particularités |
-|---|---|---|---|---|
-| **Administrateur** | `admin@covoiturage.ma` | Karim El Mansouri | `ROLE_ADMIN` | Accès au back-office `/admin` + fonctionnalités `ROLE_USER` |
-| **Conducteur 1** | `youssef.benali@covoiturage.ma` | Youssef Benali | `ROLE_USER` | 2 véhicules (Dacia Duster, Renault Clio 5), trajets publiés et terminés |
-| **Conducteur 2** | `fatima.alaoui@covoiturage.ma` | Fatima-Zahra Alaoui | `ROLE_USER` | Peugeot 3008, trajets multi-étapes (Casablanca → Marrakech → Agadir) |
-| **Conducteur 3** | `omar.aitbrahim@covoiturage.ma` | Omar Aït Brahim | `ROLE_USER` | Volkswagen Golf 8, trajets avec décalage horaire > 30 min |
-| **Conducteur 4** | `salma.chraibi@covoiturage.ma` | Salma Chraïbi | `ROLE_USER` | Hyundai Tucson |
-| **Passager 1** | `mehdi.tazi@covoiturage.ma` | Mehdi Tazi | `ROLE_USER` | Réservations confirmées à venir et trajets passés |
-| **Passager 2** | `nadia.berrada@covoiturage.ma` | Nadia Berrada | `ROLE_USER` | Réservations sur segments intermédiaires |
-| **Passager 3** | `hamza.idrissi@covoiturage.ma` | Hamza Idrissi | `ROLE_USER` | Réservations passées et annulées |
+> Chaque utilisateur inscrit (`ROLE_USER`) possède un **profil unifié** lui permettant à la fois de réserver des places comme **passager** et de publier des trajets comme **conducteur**.
+
+| Rôle principal | Adresse e-mail | Mot de passe | Nom complet | Rôle Symfony | Véhicules associés |
+|---|---|---|---|---|---|
+| **Administrateur** | `admin@covoiturage.ma` | `demo1234` | Karim El Mansouri | `ROLE_ADMIN` | — |
+| **Conducteur 1** | `youssef.benali@covoiturage.ma` | `demo1234` | Youssef Benali | `ROLE_USER` | Dacia Duster (4 pl.), Renault Clio 5 (3 pl.) |
+| **Conducteur 2** | `fatima.alaoui@covoiturage.ma` | `demo1234` | Fatima-Zahra Alaoui | `ROLE_USER` | Peugeot 3008 (4 pl.) |
+| **Conducteur 3** | `omar.aitbrahim@covoiturage.ma` | `demo1234` | Omar Aït Brahim | `ROLE_USER` | Volkswagen Golf 8 (4 pl.) |
+| **Conducteur 4** | `salma.chraibi@covoiturage.ma` | `demo1234` | Salma Chraïbi | `ROLE_USER` | Hyundai Tucson (4 pl.) |
+| **Passager 1** | `mehdi.tazi@covoiturage.ma` | `demo1234` | Mehdi Tazi | `ROLE_USER` | — |
+| **Passager 2** | `nadia.berrada@covoiturage.ma` | `demo1234` | Nadia Berrada | `ROLE_USER` | — |
+| **Passager 3** | `hamza.idrissi@covoiturage.ma` | `demo1234` | Hamza Idrissi | `ROLE_USER` | — |
 
 ---
 
-## 5. Lancer les tests automatisés (PHPUnit)
+## 6. Lancer les tests automatisés (PHPUnit)
 
-Toute la suite de tests (45 tests unitaires, d'intégration, de concurrence et fonctionnels HTTP) s'exécute directement dans le conteneur `php` :
+La suite complète comporte **45 tests et 285 assertions** (tests unitaires, intégration Doctrine, concurrence `PESSIMISTIC_WRITE`, sécurité, contrôleurs Web et API externe mockée) :
 
 ```bash
-# Lancer l'intégralité de la suite PHPUnit (45 tests, 285 assertions)
+# Exécuter toute la suite de tests (crée et peuple automatiquement la base covoiturage_test)
 docker compose exec php php bin/phpunit
 
-# Lancer spécifiquement le test d'anti-surréservation et verrouillage PESSIMISTIC_WRITE
+# Exécuter spécifiquement le test de concurrence et verrouillage pessimiste
 docker compose exec php php bin/phpunit tests/Service/BookingConcurrencyTest.php
 ```
 
 ---
 
-## 6. Commandes utiles au quotidien
+## 7. Commandes utiles au quotidien
 
 ```bash
-# Consulter l'état des conteneurs et leurs healthchecks
+# Voir l'état de santé des conteneurs
 docker compose ps
 
-# Suivre les logs d'initialisation du conteneur PHP
+# Consulter les journaux du conteneur PHP
 docker compose logs -f php
 
-# Recharger proprement les fixtures de démonstration
-docker compose exec php php bin/console doctrine:fixtures:load --no-interaction
-
-# Vérifier la validité du schéma Doctrine par rapport aux entités
+# Valider le schéma Doctrine par rapport aux entités PHP
 docker compose exec php php bin/console doctrine:schema:validate
+
+# Recharger manuellement les fixtures de démonstration (réinitialise les données)
+docker compose exec php php bin/console doctrine:fixtures:load --no-interaction
 
 # Vider le cache Symfony
 docker compose exec php php bin/console cache:clear
+
+# Ouvrir un terminal interactif dans le conteneur PHP
+docker compose exec php sh
+
+# Arrêter les conteneurs (en conservant les données MySQL)
+docker compose stop
 ```
 
 ---
 
-## 7. Dépannage courant (Troubleshooting)
+## 8. Dépannage courant (Troubleshooting)
 
-### 1. Conflit de port (`Bind for 0.0.0.0:8088 failed: port is already allocated`)
-Les ports exposés sur la machine hôte sont configurables via variables d'environnement ou dans un fichier `.env.local` :
-- `NGINX_PORT` (défaut : `8088`, choisi pour éviter les conflits fréquents sur `8080`)
-- `PMA_PORT` (défaut : `8081`)
-- `MYSQL_HOST_PORT` (défaut : `3308`)
-
-Exemple pour lancer l'application sur le port `8090` :
+### 1. Port déjà occupé (`Bind for 0.0.0.0:8088 failed: port is already allocated`)
+Les ports exposés sont configurables via variables d'environnement ou dans un fichier `.env.local` :
 ```bash
-NGINX_PORT=8090 docker compose up -d --build
-```
-*(Sous PowerShell Windows : `$env:NGINX_PORT=8090; docker compose up -d --build`)*
-
-### 2. Docker Desktop n'est pas démarré
-Si vous obtenez l'erreur `error during connect: ... open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`, lancez **Docker Desktop** et attendez que l'icône de la baleine soit stable avant de relancer `docker compose up -d --build`.
-
-### 3. Fins de ligne Windows (`CRLF`) sur `docker/php/entrypoint.sh`
-Sous Windows, Git peut convertir les fins de ligne LF en CRLF lors du clonage (`exec /usr/local/bin/entrypoint.sh: no such file or directory`).
-Deux protections sont déjà intégrées au projet :
-1. Le fichier [`.gitattributes`](.gitattributes) force `eol=lf` sur tous les scripts `*.sh`.
-2. Le [`docker/php/Dockerfile`](docker/php/Dockerfile) exécute automatiquement `sed -i 's/\r$//' /usr/local/bin/entrypoint.sh` lors du build de l'image.
-Si vous modifiez `entrypoint.sh` manuellement sous Windows, reconstruisez simplement l'image :
-```bash
-docker compose build --no-cache php && docker compose up -d
+# Exemple en créant un fichier .env.local :
+echo "NGINX_PORT=8090" >> .env.local
+echo "PMA_PORT=8091" >> .env.local
+echo "MYSQL_HOST_PORT=3309" >> .env.local
+docker compose up -d
 ```
 
-### 4. Réinitialiser complètement les volumes (base de données ou vendor corrompus)
-Pour repartir de zéro comme sur une machine neuve (supprime les volumes MySQL, `vendor/` et `var/`) :
+### 2. Docker Desktop n'est pas démarré (`error during connect` / `open //./pipe/dockerDesktopLinuxEngine`)
+Lancez l'application **Docker Desktop** et attendez que l'icône de la baleine soit stable avant de relancer `docker compose up --build -d`.
+
+### 3. Fins de ligne CRLF sur `entrypoint.sh` sous Windows (`exec /usr/local/bin/entrypoint.sh: no such file or directory`)
+Le projet inclut un fichier `.gitattributes` forçant `eol=lf` sur les scripts `*.sh`, et le `Dockerfile` exécute automatiquement `sed -i 's/\r$//' /usr/local/bin/entrypoint.sh` lors du build. Si toutefois vous modifiez `docker/php/entrypoint.sh` sous Windows avec un éditeur en CRLF, reconstruisez l'image :
+```bash
+docker compose build --no-cache php
+docker compose up -d
+```
+
+### 4. Réinitialiser complètement les volumes (base de données ou `vendor` corrompus)
+Pour repartir d'un état 100 % vierge (supprime les volumes `database_data`, `php_vendor` et `php_var`, puis relance migrations + fixtures) :
 ```bash
 docker compose down -v
-docker compose up -d --build
+docker compose up --build -d
 ```
 
-### 5. Page temporairement indisponible (`502 Bad Gateway`) dans les premières secondes
-Lors du tout premier `docker compose up --build`, le conteneur `php` installe les paquets Composer, les assets Stimulus, applique les migrations et charge les fixtures avant de démarrer `php-fpm`. Surveillez la progression avec :
-```bash
-docker compose logs -f php
-```
-Dès que le message `==> [6/6] ...` puis `ready to handle connections` apparaît, l'application est prête sur http://localhost:8088.
+### 5. MySQL pas encore prêt ou page temporairement indisponible (`502 Bad Gateway` dans les premières secondes)
+Au tout premier lancement sur une machine vierge, le conteneur `php` installe les paquets Composer puis exécute les migrations et les fixtures avant de démarrer `php-fpm`. Surveillez `docker compose logs -f php` : dès que l'étape `[4/4]` est terminée, Nginx sert immédiatement l'application.
 
 ---
 
-## 8. Note sur les API externes Nominatim et OSRM
+## 9. Note sur les API externes (Nominatim & OSRM)
 
-Le projet intègre deux services publics OpenStreetMap :
-- **Nominatim** (`https://nominatim.openstreetmap.org`) pour le géocodage des villes marocaines (`countrycodes=ma`).
-- **OSRM** (`https://router.project-osrm.org`) pour le calcul d'itinéraire routier (distance, durée, tracé GeoJSON) via l'endpoint interne `/api/route`.
+L'application interroge deux services publics gratuits (sans clé API) :
+- **Nominatim (OpenStreetMap)** pour le géocodage des villes marocaines (`NominatimClient`).
+- **OSRM (`router.project-osrm.org`)** pour le calcul de la distance routière réelle, de la durée, du tracé GeoJSON et du prix suggéré (`OsrmClient` + `RoutePricingService` via `GET /api/route`).
 
-Conformément aux conditions d'utilisation de la fondation OpenStreetMap :
-1. **Usage léger et identifié** : chaque requête envoie un en-tête `User-Agent` explicite (`AtlasCovoitMaroc/1.0`) et applique un **rate limiter** de 1 requête/seconde (`NominatimClient`).
-2. **Mise en cache automatique** : les réponses Nominatim sont mises en cache pendant **30 jours** et les itinéraires OSRM pendant **7 jours** dans `cache.app`.
-3. **Mode dégradé automatique (Fallback Haversine)** : si la machine n'a pas d'accès Internet ou si le serveur public OSRM/Nominatim est indisponible (timeout > 4 s ou erreur HTTP 5xx/429), `RoutePricingService` bascule automatiquement sur une formule de **distance à vol d'oiseau Haversine majorée d'un coefficient routier de 1,25×** et génère une ligne directe GeoJSON. L'application et la publication de trajet ne sont **jamais bloquées** par une panne réseau externe, et les tests automatisés utilisent exclusivement `MockHttpClient`.
+**Bonnes pratiques intégrées :**
+- En-tête `User-Agent` explicite conforme à la politique d'utilisation OSM.
+- Limitation de débit (**1 requête/seconde**) et mise en cache Symfony (**30 jours** pour Nominatim, **7 jours** pour OSRM).
+- **Mode dégradé automatique (Fallback Haversine)** : si la machine n'a pas d'accès Internet ou si le serveur public OSRM ne répond pas dans le délai de 4 secondes, `RoutePricingService` bascule automatiquement sur un calcul trigonométrique Haversine (`distance à vol d'oiseau × 1,25`, vitesse moyenne `80 km/h`, tarif `0,60 MAD/km` arrondi aux `5 MAD`). Aucune fonctionnalité ni aucun test ne dépend d'une connexion externe obligatoire.
